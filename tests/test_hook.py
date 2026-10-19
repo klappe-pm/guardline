@@ -1,0 +1,104 @@
+"""The agent runtime hook."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from guardline import Scanner
+from guardline.hook import HookResult, deny_reason, run_hook, startup_failure
+from tests.helpers import assert_absent
+from tests.samples import FAKE_TOKEN, TRAILER
+
+
+def payload(**tool_input: object) -> str:
+    return json.dumps(
+        {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": tool_input}
+    )
+
+
+def test_a_clean_call_is_allowed_silently() -> None:
+    assert run_hook(payload(command="ls -la"), Scanner()) == HookResult(0)
+
+
+def test_empty_input_is_denied_in_block_mode_and_only_reported_in_report_mode() -> None:
+    assert "the hook payload is empty" in run_hook("  \n", Scanner()).stdout
+    assert json.loads(run_hook("", Scanner()).stdout)
+    reported = run_hook("", Scanner(), mode="report")
+    assert (reported.exit_code, reported.stdout) == (0, "")
+    assert "payload is empty" in reported.stderr
+
+
+def test_a_dump_is_denied_with_json_and_exit_zero() -> None:
+    result = run_hook(payload(command="printenv"), Scanner())
+    assert result.exit_code == 0
+    decision = json.loads(result.stdout)["hookSpecificOutput"]
+    assert decision["hookEventName"] == "PreToolUse"
+    assert decision["permissionDecision"] == "deny"
+    assert "env-dump-printenv" in decision["permissionDecisionReason"]
+
+
+def test_exit_code_style_denies_with_two_and_empty_stdout() -> None:
+    result = run_hook(payload(command="printenv"), Scanner(), deny_with="exit-code")
+    assert (result.exit_code, result.stdout) == (2, "")
+    assert "env-dump-printenv" in result.stderr
+
+
+def test_a_deny_never_uses_exit_one() -> None:
+    for deny_with in ("json", "exit-code"):
+        assert run_hook(payload(command="env"), Scanner(), deny_with=deny_with).exit_code != 1
+
+
+def test_report_mode_allows_and_prints_findings() -> None:
+    result = run_hook(payload(command="printenv"), Scanner(), mode="report")
+    assert (result.exit_code, result.stdout) == (0, "")
+    assert "env-dump-printenv" in result.stderr
+
+
+def test_event_name_follows_the_payload() -> None:
+    body = json.dumps({"hook_event_name": "Other", "tool_input": {"command": "env"}})
+    decision = json.loads(run_hook(body, Scanner()).stdout)["hookSpecificOutput"]
+    assert decision["hookEventName"] == "Other"
+
+
+def test_unreadable_payload_fails_closed_in_block_mode() -> None:
+    result = run_hook("{not json", Scanner())
+    assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "blocked rather than passed unchecked" in result.stdout
+
+
+def test_unreadable_payload_is_only_reported_in_report_mode() -> None:
+    result = run_hook("{not json", Scanner(), mode="report")
+    assert (result.exit_code, result.stdout) == (0, "")
+    assert "not valid JSON" in result.stderr
+
+
+def test_a_scanner_crash_fails_closed() -> None:
+    class Broken(Scanner):
+        def scan_payload(self, payload: object) -> list:  # type: ignore[type-arg]
+            raise RuntimeError(FAKE_TOKEN)
+
+    result = run_hook(payload(command="ls"), Broken())
+    assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "RuntimeError" in result.stdout
+    assert_absent(FAKE_TOKEN, result.stdout, result.stderr)
+
+
+def test_startup_failure_denies_in_block_mode_and_reports_in_report_mode() -> None:
+    assert json.loads(startup_failure("bad config", "block").stdout)
+    assert startup_failure("bad config", "report").exit_code == 0
+    assert startup_failure("bad config", "block", "exit-code").exit_code == 2
+
+
+def test_deny_reason_lists_ten_findings_and_counts_the_rest() -> None:
+    findings = Scanner().scan_text((TRAILER + "\n") * 6)
+    reason = deny_reason(findings)
+    assert "and 2 more" in reason
+    assert "--allow-fenced-attribution" in reason
+
+
+@pytest.mark.parametrize("field", ["content", "new_string", "body", "message"])
+def test_text_fields_are_judged(field: str) -> None:
+    result = run_hook(payload(**{field: TRAILER}), Scanner())
+    assert "attribution-co-author-trailer" in result.stdout

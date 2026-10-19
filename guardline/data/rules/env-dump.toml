@@ -1,0 +1,156 @@
+# Environment dump rules, schema version 1.
+#
+# These rules judge one simple shell command at a time, after the shell parser
+# has looked through pipes, subshells, substitutions and wrappers such as
+# bash -c, sudo, ssh and env VAR=val. Scope "args" matches the arguments of a
+# command whose program (by base name) is listed in programs, joined with single
+# spaces. Scope "word" matches any whole word of the command, redirect targets
+# included. An env command that has nothing left to run is reported to the rules
+# with the program env and empty arguments.
+
+schema_version = 1
+
+[[rule]]
+id = "env-dump-env-no-command"
+family = "env-dump"
+description = "env with no command to run prints the whole environment."
+scope = "args"
+programs = ["env"]
+pattern = '^$'
+example_fires = "env -i FOO=1"
+example_clean = "env FOO=1 python3 -V"
+
+[[rule]]
+id = "env-dump-printenv"
+family = "env-dump"
+description = "printenv prints environment values, with or without a name."
+scope = "args"
+programs = ["printenv"]
+pattern = '^'
+example_fires = "printenv HOME"
+example_clean = "echo printenv is a command"
+
+[[rule]]
+id = "env-dump-set-bare"
+family = "env-dump"
+description = "set with no arguments prints every shell variable."
+scope = "args"
+programs = ["set"]
+pattern = '^$'
+example_fires = "set"
+example_clean = "set -e"
+
+[[rule]]
+id = "env-dump-export-listing"
+family = "env-dump"
+description = "export with no name, or export -p, lists every exported variable."
+scope = "args"
+programs = ["export"]
+pattern = '^(?:(?:--|-[A-Za-z]+)(?: |$)){0,8}$'
+example_fires = "export -p"
+example_clean = "export PATH=/usr/bin"
+
+[[rule]]
+id = "env-dump-declare-print"
+family = "env-dump"
+description = "declare, typeset, readonly or local with -p prints variable definitions."
+scope = "args"
+programs = ["declare", "typeset", "readonly", "local"]
+pattern = '(?:^| )-[A-Za-z]*p[A-Za-z]*(?= |$)'
+example_fires = "declare -p"
+example_clean = "declare -a items"
+
+[[rule]]
+id = "env-dump-declare-no-name"
+family = "env-dump"
+description = "declare or typeset with only attribute flags lists variables."
+scope = "args"
+programs = ["declare", "typeset"]
+pattern = '^(?:(?:--|-[A-EG-Za-eg-z]+)(?: |$)){0,8}$'
+example_fires = "declare -x"
+example_clean = "declare -x FOO"
+
+[[rule]]
+id = "env-dump-readonly-no-name"
+family = "env-dump"
+description = "readonly or local with no name lists variables."
+scope = "args"
+programs = ["readonly", "local"]
+pattern = '^(?:--)?$'
+example_fires = "readonly"
+example_clean = "readonly FOO=1"
+
+[[rule]]
+id = "env-dump-launchctl-print"
+family = "env-dump"
+description = "launchctl print, getenv, export, procinfo and dumpstate print launchd state and environment."
+scope = "args"
+programs = ["launchctl"]
+pattern = '^(?:print|getenv|export|procinfo|dumpstate)(?: |$)'
+example_fires = "launchctl print system"
+example_clean = "launchctl list"
+
+[[rule]]
+id = "env-dump-ps-environment-flag"
+family = "env-dump"
+description = "ps with -E in an option cluster prints each process environment."
+scope = "args"
+programs = ["ps"]
+value_options = ["-o", "-O", "-p", "-u", "-U", "-g", "-G", "-t", "-k", "-M", "-N", "-q", "-s", "-C", "--format", "--sort", "--pid", "--ppid", "--user", "--group"]
+pattern = '(?:^| )-[A-Za-z]*E[A-Za-z]*(?= |$)'
+example_fires = "ps -E"
+example_clean = "ps -e"
+
+[[rule]]
+id = "env-dump-ps-bsd-environment-word"
+family = "env-dump"
+description = "ps with a BSD style option word containing e (ps e, ps eww, ps aux e) prints each process environment."
+scope = "args"
+programs = ["ps"]
+value_options = ["-o", "-O", "-p", "-u", "-U", "-g", "-G", "-t", "-k", "-M", "-N", "-q", "-s", "-C", "--format", "--sort", "--pid", "--ppid", "--user", "--group"]
+pattern = '(?:^| )[A-Za-z]*e[A-Za-z]*(?= |$)'
+example_fires = "ps eww"
+example_clean = "ps -u deploy"
+
+[[rule]]
+id = "env-dump-proc-environ"
+family = "env-dump"
+description = "A reference to /proc/PID/environ, as an argument or a redirect target."
+scope = "word"
+pattern = '/proc/[^/\s]+(?:/[^/\s]+){0,3}/environ'
+example_fires = "cat /proc/1/environ"
+example_clean = "cat /proc/1/status"
+
+[[rule]]
+id = "env-dump-docker-inspect"
+family = "env-dump"
+description = "docker or podman inspect prints Env, unless a narrow format template selects neither Env, Config nor the whole object."
+scope = "args"
+programs = ["docker", "podman"]
+ignore_case = false
+pattern = '(?:^| )inspect(?: |$)'
+unless = '''(?:^| )(?:-f|--format)(?:=| )(?!.{0,300}(?:\.(?:Config|Env)\b|\{\{\s*(?:json\s+)?\.\s*\}\}))'''
+example_fires = "docker inspect web"
+example_clean = "docker inspect --format '{{.State.Status}}' web"
+
+[[rule]]
+id = "env-dump-security-print-secret"
+family = "env-dump"
+description = "security find-generic-password or find-internet-password with -w or -g prints the secret."
+scope = "args"
+programs = ["security"]
+ignore_case = false
+pattern = '\bfind-(?:generic|internet)-password\b.{0,2000}? -[A-Za-z]*[wg][A-Za-z]*(?= |$)'
+example_fires = "security find-generic-password -s svc -w"
+example_clean = "security find-generic-password -s svc"
+
+[[rule]]
+id = "env-dump-security-dump-keychain"
+family = "env-dump"
+description = "security dump-keychain with -d prints secrets."
+scope = "args"
+programs = ["security"]
+ignore_case = false
+pattern = '(?:^| )dump-keychain(?: .{0,500}?)? -[A-Za-z]*d[A-Za-z]*(?= |$)'
+example_fires = "security dump-keychain -d"
+example_clean = "security dump-keychain"

@@ -1,0 +1,30 @@
+# changelog
+
+All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### added
+
+- Package scaffold: `pyproject.toml` with the hatchling build backend and the `guardline` console script.
+- A rule engine where every rule is data: versioned TOML rule files shipped as package data and read through `importlib.resources`, each rule carrying an id, a family, a description, a pattern, a fire example and a look-alike example that must not fire.
+- 43 built-in rules in three families: agent attribution (9), environment dumps (14) and token-shaped values (20).
+- A shell command splitter that looks through pipes, substitutions, heredocs, here-strings and wrappers such as `bash -c`, `sudo`, `ssh`, `env VAR=val`, `xargs`, `find -exec`, `docker exec` and `kubectl exec`.
+- `guardline hook`, which judges a Claude Code `PreToolUse` payload and answers with a JSON decision or an exit code, and fails closed.
+- `guardline scan` for files, directories and standard input, with `--shell` and `--commit-msg`, and `guardline diff` for the lines a git diff adds.
+- `guardline rules list` and `guardline rules check`, which validates a rule file and runs its examples.
+- Configuration through `guardline.toml` or `[tool.guardline]`: disable rules by id, add rule files, restrict families, exclude paths and set size limits. Report and block modes.
+- `.pre-commit-hooks.yaml` with a `guardline` hook and a `guardline-commit-msg` hook.
+- An explicit `--allow-fenced-attribution` switch for quoting a third party's attribution inside a closed fenced code block. It has no configuration key.
+- Findings that carry the rule id and a position and never the matched value, with tests proving it across the API, the hook and the command line.
+- Input size limits, a token budget for the shell splitter, and linear patterns, with a rule loader check for nested quantifiers and tests that feed large adversarial input. Input over a limit and a command too complex to split are reported as findings, never skipped.
+- A hook and a command line that do not fail open: invalid bytes on standard input, a crash and a bad configuration all block in block mode, and an unexpected error in a scan exits 2 without printing the input.
+- Repository documents: `README.md`, `contributing.md`, `security.md` and `support.md`.
+- Documentation in two trees arranged by Diátaxis quadrant: `docs/` for people who use guardline and `developer-docs/` for people who change it, each with a `README.md` per folder listing its pages.
+- A shell lexer that decodes quoting the way a shell does (`$'...'` with hex, octal and unicode escapes, `$"..."`, backslash-newline, comments), a table of wrappers with their long options, and function bodies and `source /dev/stdin` as commands to inspect.
+- `guardline hook` reads configuration only from an explicit `--config`, refuses empty input in block mode, denies edits to guardline configuration files unless `--allow-config-edit`, judges every string of a tool input at any depth, and never puts rule file keys in a deny reason.
+- Attribution found in `--message=` and `--body=` values, in decoded `$'...'` text, and in text fed to a publishing command by an echo, a printf or a here-string.
+- Rule loader checks for adjacent overlapping repeats, more than 3 unbounded repeats, alternation inside a wide repeat and backreferences; `rule_files` confined to the configuration directory.
+- Token rules for Hugging Face, Slack app level and SendGrid keys, ABIA ids, PGP private key blocks, quoted assignment names and longer JWTs; token rules also run over the decoded shell words.
+- Directory scans read binary files, enter every directory but `.git`, and report skipped links as findings; `git diff` is run with `--text`.
+- A documented list of open gaps in `docs/explanation/security-model.md`, each pinned by a test.

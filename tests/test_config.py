@@ -1,0 +1,161 @@
+"""Configuration discovery, validation and the assembled rule set."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from guardline.config import (
+    Config,
+    build_ruleset,
+    build_scanner,
+    config_from_table,
+    discover_config,
+    load_config_file,
+)
+from guardline.errors import ConfigError, RuleError
+from guardline.rules import builtin_rules
+from tests.samples import TRAILER
+
+RULE_FILE = (
+    'schema_version = 1\n[[rule]]\nid = "style-no-todo"\nfamily = "style"\n'
+    'description = "No TODO markers."\npattern = "TODO"\n'
+    'example_fires = "TODO fix"\nexample_clean = "done"\n'
+)
+
+
+def test_guardline_toml_top_level_keys(tmp_path: Path) -> None:
+    file = tmp_path / "guardline.toml"
+    file.write_text(
+        'mode = "report"\ndisable = ["token-jwt"]\nrule_files = ["mine.toml"]\n'
+        'families = ["token"]\nexclude = ["*.lock"]\nmax_text_chars = 99\nmax_command_chars = 77\n',
+        encoding="utf-8",
+    )
+    config = load_config_file(file)
+    assert config.mode == "report"
+    assert config.disable == ("token-jwt",)
+    assert config.rule_files == ((tmp_path / "mine.toml").resolve(),)
+    assert config.families == ("token",)
+    assert config.exclude == ("*.lock",)
+    assert (config.max_text_chars, config.max_command_chars) == (99, 77)
+    assert config.origin == file
+
+
+def test_pyproject_tool_table(tmp_path: Path) -> None:
+    file = tmp_path / "pyproject.toml"
+    file.write_text(
+        '[tool.other]\nx = 1\n[tool.guardline]\ndisable = ["token-jwt"]\n', encoding="utf-8"
+    )
+    assert load_config_file(file).disable == ("token-jwt",)
+
+
+def test_pyproject_without_a_table_is_an_error_when_named(tmp_path: Path) -> None:
+    file = tmp_path / "pyproject.toml"
+    file.write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="no .tool.guardline. table"):
+        load_config_file(file)
+
+
+@pytest.mark.parametrize(
+    ("body", "fragment"),
+    [
+        ("bogus = 1", "unknown key"),
+        ('mode = "loud"', "mode must be"),
+        ("disable = 3", "disable must be"),
+        ("disable = [1]", "disable must be"),
+        ("max_text_chars = 0", "positive integer"),
+        ("max_text_chars = true", "positive integer"),
+        ("allow_fenced_attribution = true", "unknown key"),
+    ],
+)
+def test_invalid_configuration(tmp_path: Path, body: str, fragment: str) -> None:
+    file = tmp_path / "guardline.toml"
+    file.write_text(body + "\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match=fragment):
+        load_config_file(file)
+
+
+def test_unreadable_configuration(tmp_path: Path) -> None:
+    broken = tmp_path / "guardline.toml"
+    broken.write_text("= =", encoding="utf-8")
+    with pytest.raises(ConfigError, match="cannot read"):
+        load_config_file(broken)
+    with pytest.raises(ConfigError, match="cannot read"):
+        load_config_file(tmp_path / "absent.toml")
+
+
+def test_discovery_walks_up_and_prefers_guardline_toml(tmp_path: Path) -> None:
+    (tmp_path / "a" / "b").mkdir(parents=True)
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.guardline]\nmode = "report"\n', encoding="utf-8"
+    )
+    assert discover_config(tmp_path / "a" / "b").mode == "report"
+    (tmp_path / "a" / "guardline.toml").write_text('mode = "block"\n', encoding="utf-8")
+    assert discover_config(tmp_path / "a" / "b").mode == "block"
+
+
+def test_discovery_skips_a_pyproject_without_a_table(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    assert discover_config(tmp_path) == Config()
+
+
+def test_discovery_stops_at_the_repository_root(tmp_path: Path) -> None:
+    (tmp_path / "guardline.toml").write_text('mode = "report"\n', encoding="utf-8")
+    inner = tmp_path / "repo"
+    (inner / ".git").mkdir(parents=True)
+    assert discover_config(inner) == Config()
+
+
+def test_from_table_defaults() -> None:
+    assert config_from_table({}, Path("x.toml")).mode is None
+
+
+def test_disabling_removes_a_rule() -> None:
+    config = Config(disable=("token-jwt",))
+    assert "token-jwt" not in {rule.id for rule in build_ruleset(config)}
+    assert len(build_ruleset(config)) == len(builtin_rules()) - 1
+
+
+def test_unknown_disable_id_is_an_error() -> None:
+    with pytest.raises(ConfigError, match="no-such"):
+        build_ruleset(Config(disable=("no-such",)))
+    with pytest.raises(ConfigError, match="typo"):
+        build_ruleset(Config(), extra_disable=("typo",))
+
+
+def test_custom_rule_files_extend_the_rules(tmp_path: Path) -> None:
+    file = tmp_path / "mine.toml"
+    file.write_text(RULE_FILE, encoding="utf-8")
+    rules = build_ruleset(Config(rule_files=(file,)))
+    assert "style-no-todo" in {rule.id for rule in rules}
+    scanner = build_scanner(Config(rule_files=(file,)))
+    assert [f.rule_id for f in scanner.scan_text("TODO later")] == ["style-no-todo"]
+
+
+def test_a_custom_rule_can_be_disabled_by_id(tmp_path: Path) -> None:
+    file = tmp_path / "mine.toml"
+    file.write_text(RULE_FILE, encoding="utf-8")
+    config = Config(rule_files=(file,), disable=("style-no-todo",))
+    assert build_scanner(config).scan_text("TODO later") == []
+
+
+def test_a_custom_rule_cannot_reuse_a_builtin_id(tmp_path: Path) -> None:
+    file = tmp_path / "mine.toml"
+    file.write_text(RULE_FILE.replace("style-no-todo", "token-jwt"), encoding="utf-8")
+    with pytest.raises(RuleError, match="already used"):
+        build_ruleset(Config(rule_files=(file,)))
+
+
+def test_scanner_limits_and_families_come_from_config() -> None:
+    scanner = build_scanner(Config(max_text_chars=5, max_command_chars=6, families=("token",)))
+    assert (scanner.max_text_chars, scanner.max_command_chars) == (5, 6)
+    assert {rule.family for rule in scanner.rules} == {"token"}
+    override = build_scanner(Config(families=("token",)), families=["attribution"])
+    assert {rule.family for rule in override.rules} == {"attribution"}
+
+
+def test_disabling_the_trailer_rules_lets_the_trailer_through() -> None:
+    config = Config(disable=("attribution-co-author-trailer", "attribution-vendor-noreply-address"))
+    assert build_scanner(config).scan_text(TRAILER) == []
