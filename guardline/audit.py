@@ -308,6 +308,8 @@ class _Audit:
     ) -> tuple[str | None, frozenset[str] | None]:
         if inside_wide:
             return "alternation inside a wide repeat", None
+        if inside_many and self._overlap(branches, after):
+            return "overlapping alternation inside a repeat", None
         trailing: set[str] = set()
         for branch in branches:
             reason, ends = self.walk(branch, inside_wide, inside_many, after, previous)
@@ -315,6 +317,25 @@ class _Audit:
                 return reason, None
             trailing |= ends or set()
         return None, frozenset(trailing) if trailing else None
+
+    def _overlap(self, branches: Any, after: Any) -> bool:
+        """Whether two branches can start with the same character, or both can be empty.
+
+        A repeat of such an alternation can match the same text in many ways, so the work
+        grows exponentially with the repetitions even when the repeat is narrow.
+        """
+        seen: frozenset[str] = frozenset()
+        empty = False
+        for branch in branches:
+            if not branch.data:
+                if empty:
+                    return True
+                empty = True
+            start = _first(list(branch.data), self.ignore_case, after)
+            if start is None or seen & start:
+                return True
+            seen |= start
+        return False
 
 
 def _parse(pattern: str, flags: int) -> Any:
@@ -337,6 +358,9 @@ def unsafe_pattern_reason(pattern: str, flags: int = 0) -> str | None:
       contains an optional repeat or a repeat allowing more than one repetition, such as
       ``(a+)+``, ``(?:a?){28}`` or ``(?>(?:a+)+)``;
     - an alternation inside such a repeat;
+    - an alternation inside any repeat that allows more than one repetition when two of its
+      branches can start with the same character or both can be empty (``(?:a|a){0,16}``,
+      ``(?:aa|a){0,16}``), because each repetition then has several ways to match;
     - a variable length repeat inside a repeat that allows more than one repetition, unless
       what can follow it cannot start with one of its own characters (``(?:a{1,2}){0,16}``
       is rejected, ``(?:[a-z]{1,63}\\.){0,8}`` is accepted);
