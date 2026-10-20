@@ -86,7 +86,7 @@ def git_diff(
     if base is not None and base.startswith("-"):
         raise GuardlineError("the base revision must not start with a dash")
     command = ["git", "-C", str(repo), "-c", "core.quotepath=off", "diff", "--no-color"]
-    command += ["--no-ext-diff", "--no-textconv", "--unified=0", "--text"]
+    command += ["--no-ext-diff", "--no-textconv", "--no-relative", "--unified=0", "--text"]
     if staged:
         command.append("--cached")
     if base is not None:

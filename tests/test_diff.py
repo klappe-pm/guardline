@@ -125,3 +125,14 @@ def test_diff_ignores_textconv_drivers(repo: Path, capsys: pytest.CaptureFixture
     git(repo, "add", ".gitattributes", "app.env")
     assert main(["diff", "--repo", str(repo), "--staged"]) == 1
     assert "token-github-token" in capsys.readouterr().out
+
+
+def test_diff_relative_does_not_hide_a_staged_file_outside_the_directory(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (repo / "docs").mkdir()
+    git(repo, "config", "diff.relative", "true")
+    (repo / "settings.py").write_text(f"key = {FAKE_TOKEN}\n", encoding="utf-8")
+    git(repo, "add", "settings.py")
+    assert main(["diff", "--repo", str(repo / "docs"), "--staged"]) == 1
+    assert "token-github-token" in capsys.readouterr().out
