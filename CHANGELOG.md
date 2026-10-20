@@ -71,3 +71,4 @@ All notable changes to this project are documented in this file. The format foll
 - `max_text_chars` is capped at 16 MiB (16777216) and `max_command_chars` at 1 MiB (1048576). A larger value is a `ConfigError`; `max_text_chars = 100000000000` used to end a scan with an internal error or an attempt to allocate that much.
 - The pre-commit snippet from `guardline init` and the two how-to guides pin `rev: v0.1.0`, the release tag, instead of the moving `main` branch. A test requires every `rev:` in the documents to be a release tag or a commit hash.
 - A tool input with exactly 2001 strings is now reported as too complex, as the documents promise for more than 2000. The leaf check ran before a string was added, so one string too many was judged without the finding.
+- `guardline init --force` over a `guardline.toml` that is not UTF-8 text stops with a configuration error and exit 2, and leaves the file alone. It used to end with an internal error.

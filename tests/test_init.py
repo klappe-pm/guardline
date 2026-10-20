@@ -166,6 +166,18 @@ def test_an_existing_guardline_toml_is_never_overwritten_without_force(
     assert (project / "guardline.toml").read_text(encoding="utf-8") == 'mode = "report"\n'
 
 
+def test_force_over_a_file_that_is_not_utf8_is_a_configuration_error(
+    run: Run, project: Path
+) -> None:
+    (project / "guardline.toml").write_bytes(b"# caf\xe9\n")
+    code, out, err = run("init", "--yes", "--force", "--target", "guardline.toml")
+    assert code == 2
+    assert "internal error" not in err
+    assert "guardline.toml" in err
+    assert (project / "guardline.toml").read_bytes() == b"# caf\xe9\n"
+    assert out == ""
+
+
 def test_force_replaces_and_the_diff_shows_the_old_line(run: Run, project: Path) -> None:
     (project / "guardline.toml").write_text('mode = "report"\n', encoding="utf-8")
     code, out, _ = run("init", "--yes", "--force")

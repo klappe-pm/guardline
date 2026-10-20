@@ -179,8 +179,9 @@ def inspect_target(directory: Path, target: str, *, force: bool) -> tuple[Path, 
 
     Raises:
         ConfigError: the target is a symbolic link, the target already holds
-            configuration and ``force`` is off, a ``pyproject.toml`` target is missing or
-            unreadable, or a ``guardline.toml`` beside it would override it.
+            configuration and ``force`` is off, the target cannot be read as UTF-8 text,
+            a ``pyproject.toml`` target is missing, or a ``guardline.toml`` beside it would
+            override it.
     """
     path = directory / target
     if path.is_symlink():
@@ -188,7 +189,14 @@ def inspect_target(directory: Path, target: str, *, force: bool) -> tuple[Path, 
     if target == "guardline.toml":
         if path.exists() and not force:
             raise ConfigError(f"{path} already exists; use --force to replace it")
-        return path, path.read_text(encoding="utf-8") if path.is_file() else None
+        if not path.is_file():
+            return path, None
+        try:
+            return path, path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            raise ConfigError(
+                f"{path}: cannot read as UTF-8 text; fix or remove it first"
+            ) from None
     if (directory / "guardline.toml").exists():
         raise ConfigError(
             f"{directory / 'guardline.toml'} exists and takes precedence over pyproject.toml; "
