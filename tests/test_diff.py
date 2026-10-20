@@ -97,3 +97,31 @@ def test_a_missing_git_binary_is_an_error(monkeypatch: pytest.MonkeyPatch, tmp_p
     monkeypatch.setattr(subprocess, "run", boom)
     with pytest.raises(GuardlineError, match="cannot run git"):
         git_diff(tmp_path)
+
+
+# the output of git diff is judged as git printed it -------------------------------------------
+
+
+def test_diff_judges_a_file_with_a_byte_that_is_not_utf8(
+    repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (repo / "notes.txt").write_bytes(b"caf\xe9\nkey = " + FAKE_TOKEN.encode() + b"\n")
+    git(repo, "add", "notes.txt")
+    assert main(["diff", "--repo", str(repo), "--staged"]) == 1
+    assert "token-github-token" in capsys.readouterr().out
+
+
+def test_git_diff_returns_text_for_invalid_utf8(repo: Path) -> None:
+    (repo / "notes.txt").write_bytes(b"caf\xe9\n")
+    git(repo, "add", "notes.txt")
+    assert "caf�" in git_diff(repo, staged=True)
+
+
+@pytest.mark.skipif(shutil.which("sed") is None, reason="needs sed for the textconv driver")
+def test_diff_ignores_textconv_drivers(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    (repo / ".gitattributes").write_text("*.env diff=hide\n", encoding="utf-8")
+    git(repo, "config", "diff.hide.textconv", "sed s/ghp_/xxx_/")
+    (repo / "app.env").write_text(f"key = {FAKE_TOKEN}\n", encoding="utf-8")
+    git(repo, "add", ".gitattributes", "app.env")
+    assert main(["diff", "--repo", str(repo), "--staged"]) == 1
+    assert "token-github-token" in capsys.readouterr().out

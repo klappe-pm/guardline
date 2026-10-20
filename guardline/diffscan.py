@@ -86,7 +86,7 @@ def git_diff(
     if base is not None and base.startswith("-"):
         raise GuardlineError("the base revision must not start with a dash")
     command = ["git", "-C", str(repo), "-c", "core.quotepath=off", "diff", "--no-color"]
-    command += ["--no-ext-diff", "--unified=0", "--text"]
+    command += ["--no-ext-diff", "--no-textconv", "--unified=0", "--text"]
     if staged:
         command.append("--cached")
     if base is not None:
@@ -95,7 +95,13 @@ def git_diff(
     command.extend(paths)
     try:
         done = subprocess.run(  # noqa: S603 - fixed argument list, no shell
-            command, capture_output=True, text=True, check=False, timeout=GIT_TIMEOUT_SECONDS
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=GIT_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.SubprocessError) as error:
         raise GuardlineError(f"cannot run git: {error.__class__.__name__}") from None

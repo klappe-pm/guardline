@@ -68,7 +68,7 @@ A file longer than `max_text_chars` is not read in full and yields a `guardline-
 guardline diff [common options] [--staged] [--base REV] [--repo DIR] [--format text|json] [PATH ...]
 ```
 
-Runs `git diff --unified=0` and scans only the added lines. Findings are reported at the line numbers of the new file. `--staged` diffs the index, `--base REV` compares against a revision (a value starting with a dash is refused), `--repo DIR` names the repository (default: the current directory), and the paths limit the files. The command runs `git` with an argument list and never contacts a remote.
+Runs `git diff --no-ext-diff --no-textconv --unified=0 --text` and scans only the added lines. External diff programs and `textconv` filters are switched off, because a filter can rewrite the text git shows and hide a match that the commit would publish. Git's output is decoded as UTF-8 with invalid bytes replaced, so a Latin-1 byte in a file cannot crash the command. Findings are reported at the line numbers of the new file. `--staged` diffs the index, `--base REV` compares against a revision (a value starting with a dash is refused), `--repo DIR` names the repository (default: the current directory), and the paths limit the files. The command runs `git` with an argument list and never contacts a remote.
 
 ## guardline-rules-list
 
