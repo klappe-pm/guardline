@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, TypeVar
 
+from guardline import __version__
 from guardline.config import MODES
 from guardline.errors import ConfigError
 from guardline.rules import builtin_rules
@@ -267,12 +268,12 @@ def claude_code_snippet(command: str) -> str:
 
 
 def pre_commit_snippet(mode: str) -> str:
-    """Return the ``.pre-commit-config.yaml`` snippet for a mode."""
+    """Return the ``.pre-commit-config.yaml`` snippet for a mode, pinned to this release's tag."""
     args = "" if mode == "block" else "\n        args: [--mode, report, --]"
     return (
         "repos:\n"
         "  - repo: https://github.com/klappe-pm/guardline\n"
-        "    rev: main\n"
+        f"    rev: v{__version__}\n"
         "    hooks:\n"
         f"      - id: guardline{args}\n"
         f"      - id: guardline-commit-msg{args}\n"

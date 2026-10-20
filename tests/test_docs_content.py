@@ -136,3 +136,24 @@ def test_documented_config_show_output_is_real(
     real = capsys.readouterr().out.replace(str(tmp_path), "/tmp/guardline-tour/project")  # noqa: S108
     text = (ROOT / "docs/tutorials/getting-started.md").read_text(encoding="utf-8")
     assert real in text
+
+
+# pre-commit snippets pin a release, never a branch -----------------------------------------------
+
+REV = re.compile(r"^\s*rev:\s*(\S+)\s*$", re.MULTILINE)
+PINNED = re.compile(r"v\d+\.\d+\.\d+|[0-9a-f]{40}")
+
+
+def test_every_documented_pre_commit_snippet_pins_a_release_tag() -> None:
+    from guardline import __version__
+
+    found = []
+    for path in MD:
+        for rev in REV.findall(path.read_text(encoding="utf-8")):
+            found.append((label(path), rev))
+            assert PINNED.fullmatch(rev), (label(path), rev)
+    assert {label_ for label_, _ in found} >= {
+        "docs/how-to-guides/use-with-pre-commit.md",
+        "docs/how-to-guides/choose-block-or-report-mode.md",
+    }
+    assert {rev for _, rev in found} == {f"v{__version__}"}, "bump the snippets with the version"

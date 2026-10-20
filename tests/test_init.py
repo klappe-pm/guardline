@@ -363,6 +363,15 @@ def test_the_pre_commit_snippet_sets_report_mode_through_args() -> None:
     assert "id: guardline-commit-msg" in snippet
 
 
+@pytest.mark.parametrize("mode", ["block", "report"])
+def test_the_pre_commit_snippet_pins_the_release_tag_not_a_branch(mode: str) -> None:
+    from guardline import __version__
+
+    snippet = pre_commit_snippet(mode)
+    assert f"rev: v{__version__}\n" in snippet
+    assert "rev: main" not in snippet
+
+
 def test_a_later_mode_flag_beats_the_hook_entry(run: Run, project: Path) -> None:
     """The hook entry passes --mode block, so report mode has to arrive after it."""
     file = project / "msg.txt"

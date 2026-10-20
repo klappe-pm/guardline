@@ -4,12 +4,12 @@ This guide adds Guardline to a repository as a [pre-commit](https://pre-commit.c
 
 ## Add the Hooks
 
-Add this to `.pre-commit-config.yaml`. Pin `rev` to a tag or a commit once one exists; until the first release use the branch name:
+Add this to `.pre-commit-config.yaml`. Pin `rev` to a release tag (or a full commit hash), never to a branch name, because a branch moves under you. `guardline init --hook pre-commit` prints the tag of the release you have installed:
 
 ```yaml
 repos:
   - repo: https://github.com/klappe-pm/guardline
-    rev: main
+    rev: v0.1.0
     hooks:
       - id: guardline
       - id: guardline-commit-msg
