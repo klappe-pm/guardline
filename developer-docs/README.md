@@ -8,7 +8,7 @@ Lessons for someone who has not contributed before. [first contribution](tutoria
 
 ## how-to-guides
 
-Recipes for a specific goal. [run the tests](how-to-guides/run-the-tests.md) covers the suite, coverage, linting and type checking, and [add a rule](how-to-guides/add-a-rule.md) covers adding a built-in rule and what the tests then require. Index: [how-to guides](how-to-guides/README.md).
+Recipes for a specific goal. [run the tests](how-to-guides/run-the-tests.md) covers the suite, coverage, linting and type checking, and [add a rule](how-to-guides/add-a-rule.md) covers adding a built-in rule and what the tests then require, and [release](how-to-guides/release.md) publishes a version to PyPI through trusted publishing. Index: [how-to guides](how-to-guides/README.md).
 
 ## reference
 
