@@ -214,7 +214,7 @@ def test_a_file_the_config_does_not_name_stays_editable(
 
 
 def hook_process(option: str, path: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # noqa: S603 - fixed argument list, no shell
+    return subprocess.run(  # noqa: S603 (fixed argument list, no shell)
         [sys.executable, "-m", "guardline", "hook", option, str(path)],
         input=payload(command="ls"),
         capture_output=True,

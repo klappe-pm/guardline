@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git is not 
 
 
 def git(repo: Path, *args: str) -> None:
-    subprocess.run(  # noqa: S603 - fixed argument list, no shell
+    subprocess.run(  # noqa: S603 (fixed argument list, no shell)
         ["git", "-C", str(repo), "-c", "user.name=T", "-c", "user.email=t@example.com", *args],  # noqa: S607
         check=True,
         capture_output=True,

@@ -94,7 +94,7 @@ def git_diff(
     command.append("--")
     command.extend(paths)
     try:
-        done = subprocess.run(  # noqa: S603 - fixed argument list, no shell
+        done = subprocess.run(  # noqa: S603 (fixed argument list, no shell)
             command,
             capture_output=True,
             text=True,
