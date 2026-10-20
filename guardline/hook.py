@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from guardline.engine import ATTRIBUTION_FAMILY, CONFIG_EDIT_RULE, Scanner
-from guardline.model import Finding
+from guardline.model import ENGINE_FAMILY, Finding
 
 DENY_CODE = 2
 """The exit code that blocks a tool call when ``deny_with`` is ``exit-code``."""
@@ -38,7 +38,12 @@ class HookResult:
 
 def deny_reason(findings: list[Finding]) -> str:
     """Build the human readable reason for a deny. It names rules and positions, never values."""
-    listed = [f"{f.rule_id} at {f.source} line {f.line} column {f.column}" for f in findings]
+    listed = [
+        f"{f.rule_id} at {f.source} line {f.line} column {f.column}"
+        # An engine finding stands for a limit, and its description names the limit.
+        + (f" ({f.description.rstrip('.')})" if f.family == ENGINE_FAMILY else "")
+        for f in findings
+    ]
     more = len(listed) - MAX_LISTED
     text = "; ".join(listed[:MAX_LISTED]) + (f"; and {more} more" if more > 0 else "")
     reason = (
@@ -99,11 +104,17 @@ def run_hook(
         return _failure("the hook payload is empty", mode, event, deny_with)
     try:
         payload: Any = json.loads(stdin_text)
+    except RecursionError:
+        return _failure("the hook payload nests too deeply to parse", mode, event, deny_with)
+    except json.JSONDecodeError:
+        return _failure("the hook payload is not valid JSON", mode, event, deny_with)
+    except Exception as error:
+        name = error.__class__.__name__
+        return _failure(f"the hook payload could not be read ({name})", mode, event, deny_with)
+    try:
         if isinstance(payload, dict) and isinstance(payload.get("hook_event_name"), str):
             event = payload["hook_event_name"]
         findings = scanner.scan_payload(payload)
-    except json.JSONDecodeError:
-        return _failure("the hook payload is not valid JSON", mode, event, deny_with)
     except Exception as error:
         return _failure(f"the scanner failed ({error.__class__.__name__})", mode, event, deny_with)
     if not findings:

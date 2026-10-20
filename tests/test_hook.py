@@ -234,3 +234,42 @@ def test_a_fifo_named_by_the_hook_is_denied_without_hanging(tmp_path: Path, opti
     except subprocess.TimeoutExpired:
         pytest.fail(f"the hook blocked reading a FIFO named by {option}")
     assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# the deny message says which limit was hit ----------------------------------------------------
+
+
+def reason_of(result: HookResult) -> str:
+    return str(json.loads(result.stdout)["hookSpecificOutput"]["permissionDecisionReason"])
+
+
+def test_an_oversize_deny_says_which_limit() -> None:
+    result = run_hook(payload(command="ls " + "a" * 70_000), Scanner())
+    assert "longer than 65536 characters" in reason_of(result)
+
+
+def test_a_finding_from_a_rule_is_named_by_id_and_position_only() -> None:
+    result = run_hook(payload(command="printenv"), Scanner())
+    reason = reason_of(result)
+    assert "env-dump-printenv at tool_input.command line 1 column 1" in reason
+    assert "line 1 column 1." in reason
+
+
+def test_a_deeply_nested_payload_is_named_as_such() -> None:
+    stdin = '{"tool_name": "Bash", "tool_input": {"x": ' + "[" * 5000 + "1" + "]" * 5000 + "}}"
+    reason = reason_of(run_hook(stdin, Scanner()))
+    assert "nests too deeply to parse" in reason
+    assert "scanner failed" not in reason
+
+
+def test_a_parser_failure_other_than_bad_json_still_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def explode(text: str) -> object:
+        raise MemoryError
+
+    monkeypatch.setattr("guardline.hook.json.loads", explode)
+    result = run_hook(payload(command="ls"), Scanner())
+    monkeypatch.undo()
+    assert '"deny"' in result.stdout
+    assert "could not be read (MemoryError)" in reason_of(result)

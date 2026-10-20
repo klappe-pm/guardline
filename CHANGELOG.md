@@ -46,6 +46,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Security
 
+- The hook's deny reason now says which limit was hit (for example "longer than 65536 characters"), names a payload that nests too deeply for the JSON parser, and reads the payload in its own try block that catches any exception, so a parser failure still blocks the call.
 - A command with thousands of `find -exec` words no longer takes quadratic time and memory in the shell splitter. A 64 KiB command took 23 s and 646 MB; each `-exec` body is now collected once.
 - A command that starts with thousands of `{` or `!` words is split in linear time. The leading keyword strip copied the word list once per keyword.
 - A staged file named like an option (`--mode=report`, `--help`, `--family=env-dump`) or named `-` can no longer change a pre-commit scan or turn it into a read of standard input: the hook entries end their options with `--` and pass `--no-stdin`, the `guardline init` report mode snippet is `args: [--mode, report, --]`, and every parser refuses abbreviated option names.

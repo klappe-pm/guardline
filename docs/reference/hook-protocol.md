@@ -36,7 +36,7 @@ In block mode with a finding, the default `--deny-with json` writes this to stan
 }
 ```
 
-The reason is also written to standard error. With `--deny-with exit-code`, standard output stays empty, the reason goes to standard error and the exit code is 2. The reason lists at most ten findings by rule id and position and counts the rest. It never contains matched text. When an attribution rule fired, it also names `--allow-fenced-attribution`.
+The reason is also written to standard error. With `--deny-with exit-code`, standard output stays empty, the reason goes to standard error and the exit code is 2. The reason lists at most ten findings by rule id and position and counts the rest. It never contains matched text. A finding that stands for a limit, such as `guardline-input-too-large`, also names the limit in parentheses, for example `(The input is longer than 65536 characters and was not scanned)`. When an attribution rule fired, it also names `--allow-fenced-attribution`.
 
 With no finding the hook writes nothing and exits 0. In report mode it writes the findings to standard error, one per line, and exits 0.
 
@@ -55,6 +55,8 @@ The hook never exits 1. Claude Code treats exit 1 as a non-blocking error and ru
 | --- | --- | --- |
 | empty input | deny | print and allow |
 | input is not valid JSON | deny | print and allow |
+| input nested too deeply for the JSON parser | deny, saying the payload nests too deeply to parse | print and allow |
+| the JSON parser fails in any other way | deny, naming the exception class only | print and allow |
 | a scanner exception | deny, naming the exception class only | print and allow |
 | a configuration or rule file error | deny, with the error message | print and allow |
 | input over the size limit | deny with a `guardline-input-too-large` finding | print and allow |
