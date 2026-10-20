@@ -364,3 +364,24 @@ def test_findings_across_many_leaves_are_capped() -> None:
     findings = Scanner().scan_payload(payload)
     assert len(findings) <= MAX_FINDINGS + 1
     assert findings[-1].rule_id == "guardline-findings-truncated"
+
+
+# one value at the documented limit scans quickly ------------------------------------------------
+
+
+@pytest.mark.parametrize("piece", ['"Co-Authored-By:', '"Assisted-By:'])
+def test_one_text_value_made_of_quoted_trailer_openings_scans_within_a_second(piece: str) -> None:
+    text = (piece * (DEFAULT_MAX_TEXT_CHARS // len(piece) + 1))[:DEFAULT_MAX_TEXT_CHARS]
+    started = time.perf_counter()
+    Scanner().scan_text(text)
+    assert time.perf_counter() - started < 1.0
+
+
+def test_a_trailer_in_a_quoted_string_is_still_found() -> None:
+    agent = "Cl" + "aude"
+    assert "attribution-co-author-trailer" in rule_ids(
+        Scanner().scan_text(f'msg = "Co-Authored-By: {agent} <x@example.com>"')
+    )
+    assert "attribution-assisted-by-trailer" in rule_ids(
+        Scanner().scan_text(f"say 'Assisted-By: {agent}'")
+    )

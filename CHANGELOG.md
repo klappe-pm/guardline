@@ -46,6 +46,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Security
 
+- One text value made of repeated quoted co-author or assisted-by trailer openings at the 1 MiB limit no longer takes about two seconds to scan. The two trailer rules now stop their name part at a quote or backtick and allow one closing quote before the agent name, and the footer rule's leading punctuation is possessive. A trailer whose name part contains a quote, such as `Dana's` followed by an agent name, is no longer matched; this is listed as a known gap.
 - A tool input is bounded as a whole. Six values just under the text limit each took their full scan time; now all string values of one tool input together are limited to `max_text_chars` and all command values together to `max_command_chars`, and the findings collected across values are capped at the usual 1000.
 - The hook command reads at most four times `max_text_chars` bytes from standard input, and `run_hook` refuses a longer payload before parsing it, so 8 MiB of input is a quick deny instead of a long parse.
 - The hook's deny reason now says which limit was hit (for example "longer than 65536 characters"), names a payload that nests too deeply for the JSON parser, and reads the payload in its own try block that catches any exception, so a parser failure still blocks the call.

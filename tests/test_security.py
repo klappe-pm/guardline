@@ -221,6 +221,7 @@ KNOWN_COMMAND_BYPASSES = {
 }
 
 KNOWN_TEXT_BYPASSES = {
+    "quote character before the agent name in a trailer": "Co-Authored-By: Dana's " + AGENT,
     "zero width space inside a vendor name": "Co-Authored-By: "
     + AGENT[:2]
     + "\u200b"

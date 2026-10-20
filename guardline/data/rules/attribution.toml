@@ -12,7 +12,7 @@ schema_version = 1
 id = "attribution-co-author-trailer"
 family = "attribution"
 description = "A Co-Authored-By trailer whose name part names a coding agent or its vendor."
-pattern = '''(?:^|["'`])[ \t>*_-]{0,16}Co[- ]?Authored[- ]?By[ \t]*:[^\n<]{0,200}?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+pattern = '''(?:^|["'`])[ \t>*_-]{0,16}Co[- ]?Authored[- ]?By[ \t]*:[^\n<"'`]{0,200}?["'`]?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
 example_fires = "fix: parser\n\nCo-Authored-By: \u0043laude <noreply@example.com>"
 example_clean = "fix: parser\n\nCo-Authored-By: Dana Lee <dana@example.com>"
 
@@ -20,7 +20,7 @@ example_clean = "fix: parser\n\nCo-Authored-By: Dana Lee <dana@example.com>"
 id = "attribution-assisted-by-trailer"
 family = "attribution"
 description = "An Assisted-By or Generated-By trailer whose name part names a coding agent or its vendor."
-pattern = '''(?:^|["'`])[ \t>*_-]{0,16}(?:Assisted|Generated)[- ]?By[ \t]*:[^\n<]{0,200}?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+pattern = '''(?:^|["'`])[ \t>*_-]{0,16}(?:Assisted|Generated)[- ]?By[ \t]*:[^\n<"'`]{0,200}?["'`]?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
 example_fires = "Assisted-By: \u0043odex CLI"
 example_clean = "Assisted-By: Dana Lee"
 
@@ -28,7 +28,7 @@ example_clean = "Assisted-By: Dana Lee"
 id = "attribution-generated-with-footer"
 family = "attribution"
 description = "A generated with, created by or written by footer or byline that names a coding agent."
-pattern = '''(?:^|(?<=[.!?,;])[ \t]{1,16}|[(\["'`|])[^A-Za-z0-9\n]{0,8}?(?:Generated|Created|Authored|Written|Built)\s{1,16}(?:with|by)\b.{0,40}?\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+pattern = '''(?:^|(?<=[.!?,;])[ \t]{1,16}|[(\["'`|])[^A-Za-z0-9\n]{0,8}+(?:Generated|Created|Authored|Written|Built)\s{1,16}(?:with|by)\b.{0,40}?\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
 example_fires = "Fix the parser. Generated with \u0043laude Code"
 example_clean = "fix: parse config files created by \u0043odex CLI"
 

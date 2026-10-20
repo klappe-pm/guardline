@@ -20,6 +20,8 @@ Attribution rules judge authored text: commit messages, pull request bodies, fil
 | `attribution-product-link` | text | A link whose text names an agent product and whose host is the vendor or the vendor's own repository landing page. |
 | `attribution-robot-byline` | text | A robot emoji used as an authorship mark. |
 
+The two trailer rules read the name part up to the first quote or backtick, then allow one closing quote before the agent name, so a quoted trailer (`"Co-Authored-By: Name"`) is still found and a scan of a long run of quotes stays fast. A quote or backtick inside the name part, as in `Dana's Claude`, ends the match. The footer rule skips its leading punctuation without backtracking.
+
 The product link rule decides by host. A link to an issue, pull request, release or documentation path in a vendor's repository, and a link to a third party's page that merely names the product, are citations and pass. The `--allow-fenced-attribution` switch affects only this family.
 
 ## Env-Dump
