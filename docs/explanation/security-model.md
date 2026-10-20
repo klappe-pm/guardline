@@ -63,7 +63,7 @@ A guard that can be made slow can be made to time out, and a hook that times out
 - the shell lexer shares a budget of 100000 tokens across a command and everything nested in it, stops at nesting depth 8 and at 5000 commands, and each of those limits yields a `guardline-command-too-complex` finding rather than silence;
 - no built-in pattern fails the loader audit; prefix patterns start at a token boundary, repeats are bounded wherever the text can be hostile, and possessive repeats avoid backtracking;
 - a tool input is walked to depth 16 and 2000 strings;
-- the shell splitter does linear work: `find` handles each `-exec` body once and then skips past its `;` or `+`, so a command made of thousands of `-exec` words costs time and memory in proportion to its length, not its square;
+- the shell splitter does linear work: `find` handles each `-exec` body once and then skips past its `;` or `+`, so a command made of thousands of `-exec` words costs time and memory in proportion to its length, not its square, and leading keywords such as `{` and `!` are skipped with an index rather than by copying the word list on every step;
 - a test feeds each rule inputs built from its own example in shapes meant to be slow, and feeds the whole scanner large adversarial text and commands, and requires each to finish within a fixed budget.
 
 What this does not prove: the budget in the tests is generous so that it does not flake, and a slow machine with a 1 MiB input still takes seconds. Lower the limits in the configuration if the hook has a short timeout.

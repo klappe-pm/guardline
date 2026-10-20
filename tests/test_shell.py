@@ -127,3 +127,9 @@ def test_find_with_many_exec_flags_is_linear_in_memory() -> None:
 
 def test_find_still_finds_every_exec_body() -> None:
     assert "printenv" in programs("find . -exec printenv + -exec ls {} \\;")
+@pytest.mark.parametrize("piece", ["{ ", "! "])
+def test_many_leading_keywords_are_linear(piece: str) -> None:
+    command = (piece * DEFAULT_MAX_COMMAND_CHARS)[: DEFAULT_MAX_COMMAND_CHARS - 1] + "x"
+    started = time.perf_counter()
+    Scanner().scan_command(command)
+    assert time.perf_counter() - started < 1.0

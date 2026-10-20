@@ -554,15 +554,17 @@ def _shell_script(args: list[str]) -> tuple[str, str | None]:
 
 
 def _strip_leading(argv: list[str]) -> list[str]:
-    argv = list(argv)
-    while argv:
-        if argv[0] in _LEADING_KEYWORDS or _ASSIGNMENT.match(argv[0]):
-            argv = argv[1:]
-        elif argv[0] == "function" and "{" in argv:
-            argv = argv[argv.index("{") + 1 :]
+    """Drop leading keywords, assignments and a ``function name {`` header in one pass."""
+    i = 0
+    while i < len(argv):
+        word = argv[i]
+        if word in _LEADING_KEYWORDS or _ASSIGNMENT.match(word):
+            i += 1
+        elif word == "function" and "{" in argv[i:]:
+            i = argv.index("{", i) + 1
         else:
             break
-    return argv
+    return argv[i:]
 
 
 def _reads_stdin_shell(argv: list[str]) -> bool:
