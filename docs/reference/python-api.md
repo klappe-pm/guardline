@@ -80,7 +80,7 @@ A frozen dataclass with the fields described in [rule file format](rule-file-for
 
 - `parse_rules(text, origin) -> tuple[Rule, ...]`: parse rule file text.
 - `merge_rules(base, extra) -> tuple[Rule, ...]`: combine rule sets; raises `RuleError` on a reused id.
-- `unsafe_pattern_reason(pattern) -> str | None` and `has_nested_quantifier(pattern) -> bool`: the loader's regular expression denial of service audit.
+- `unsafe_pattern_reason(pattern, flags=0) -> str | None`, `has_nested_quantifier(pattern, flags=0) -> bool` and `unbounded_repeat_warning(pattern, flags=0) -> str | None`: the loader's regular expression denial of service audit.
 
 ## Config Module
 

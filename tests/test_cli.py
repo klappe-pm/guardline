@@ -503,3 +503,23 @@ def test_an_abbreviated_option_is_a_usage_error(
         main(argv)
     assert stop.value.code == 2
     capsys.readouterr()
+
+
+# rules check reports a custom pattern with an unbounded repeat ---------------------------------
+
+
+def test_rules_check_warns_about_an_unbounded_repeat_but_still_passes(run, isolated: Path) -> None:  # type: ignore[no-untyped-def]
+    rules = write(
+        isolated / "house.toml",
+        'schema_version = 1\n[[rule]]\nid = "house-word"\nfamily = "house"\n'
+        'description = "A word."\npattern = "[a-z]+;"\n'
+        'example_fires = "ab;"\nexample_clean = "ab"\n',
+    )
+    code, out, err = run("rules", "check", str(rules))
+    assert code == 0
+    assert out == "ok: 1 rule(s) validated\n"
+    assert "warning: rule house-word: pattern has an unbounded repeat" in err
+
+
+def test_rules_check_on_the_built_in_rules_prints_no_warning(run) -> None:  # type: ignore[no-untyped-def]
+    assert run("rules", "check")[2] == ""

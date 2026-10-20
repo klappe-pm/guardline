@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -12,7 +13,13 @@ import pytest
 from guardline import Scanner, builtin_rules, load_rule_file, verify_rule_examples
 from guardline.errors import RuleError
 from guardline.model import BUILTIN_FAMILIES, Rule
-from guardline.rules import has_nested_quantifier, merge_rules, parse_rules
+from guardline.rules import (
+    has_nested_quantifier,
+    merge_rules,
+    parse_rules,
+    unbounded_repeat_warning,
+    unsafe_pattern_reason,
+)
 from tests.helpers import call_within
 
 RULES = builtin_rules()
@@ -183,7 +190,7 @@ def test_load_rule_file_reports_a_missing_file(tmp_path: Path) -> None:
         ("(?:a|b+)+c", True),
         ("(?:\\d+){0,40}", True),
         ("a+b+", False),
-        ("(?:a+){0,4}", False),
+        ("(?:a+){0,4}", True),
         ("(?:[a-z0-9-]{1,63}\\.){0,8}x", False),
         ("(?=a+)b+", False),
         ("a{16,128}+(?!\\()", False),
@@ -229,3 +236,100 @@ def test_a_fifo_rule_file_is_refused_without_blocking(tmp_path: Path) -> None:
     os.mkfifo(fifo)
     with pytest.raises(RuleError, match="not a regular file"):
         call_within(10, lambda: load_rule_file(fifo))
+
+
+# the audit sees the shapes that used to slip past it -------------------------------------------
+
+AUDIT_BYPASSES = {
+    # pattern: a hostile input that takes seconds if the loader accepts the pattern
+    "a*A*;": "a" * 1500,
+    r"\w*-?\w*;": "a" * 1500,
+    ".*\u00e9*;": "\u00e9" * 1500,
+    r"\d*[\u0660-\u0669]*;": "\u0661" * 1200,
+    r"(?>(?:a+)+;)": "a" * 25,
+    r"\w{0,100000}-?\w{0,100000}-?\w{0,100000}-?\w{0,100000};": "a" * 150,
+    r"(?:(?:a{0,16}){0,16});": "a" * 24,
+    r"(?:(?:(?:a{0,16}){0,16}){0,16});": "a" * 12,
+    r"(?:a{1,2}){0,16};": "a" * 1000,
+}
+
+
+def rule_file_with(pattern: str) -> str:
+    body = pattern.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        'schema_version = 1\n[[rule]]\nid = "probe"\nfamily = "probe"\ndescription = "d"\n'
+        f'pattern = "{body}"\nexample_fires = "x"\nexample_clean = "y"\n'
+    )
+
+
+@pytest.mark.parametrize("pattern", sorted(AUDIT_BYPASSES))
+def test_the_loader_rejects_or_bounds_a_super_linear_pattern(pattern: str) -> None:
+    try:
+        (rule,) = parse_rules(rule_file_with(pattern), "probe.toml")
+    except RuleError:
+        return
+    started = time.perf_counter()
+    rule.regex.search(AUDIT_BYPASSES[pattern])
+    assert time.perf_counter() - started < 0.5
+
+
+@pytest.mark.parametrize("pattern", sorted(AUDIT_BYPASSES))
+def test_the_audit_names_a_reason_for_each_bypass(pattern: str) -> None:
+    flags = re.MULTILINE | re.IGNORECASE
+    assert unsafe_pattern_reason(pattern, flags) is not None
+
+
+@pytest.mark.parametrize("rule", RULES, ids=IDS)
+def test_every_builtin_pattern_passes_the_audit_with_its_own_flags(rule: Rule) -> None:
+    assert unsafe_pattern_reason(rule.pattern, rule.regex.flags) is None
+    if rule.unless:
+        assert unsafe_pattern_reason(rule.unless, rule.regex.flags) is None
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        r"(?:-[A-Za-z]+(?: |$)){0,8}",
+        r"(?:[a-z0-9-]{1,63}\.){0,8}x",
+        r"(?:\.[a-z]*){1,8}",
+        r"[a-z]+-[0-9]+",
+        r"\d+(?:\.\d+)?",
+        r"a{1,2}b?c",
+    ],
+)
+def test_ordinary_shapes_are_still_accepted(pattern: str) -> None:
+    assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
+
+
+def test_a_bound_over_1024_counts_as_unbounded() -> None:
+    assert unsafe_pattern_reason(r"a{0,2000}b{0,2000}c{0,2000}d{0,2000}") == (
+        "more than 3 unbounded repeats"
+    )
+
+
+def test_case_folding_cannot_hide_an_overlap() -> None:
+    assert unsafe_pattern_reason("a*A*;", re.IGNORECASE) is not None
+    assert unsafe_pattern_reason("a*A*;", 0) is None
+
+
+def test_the_audit_uses_the_flags_of_the_rule(tmp_path: Path) -> None:
+    text = rule_file_with("a*A*;").replace(
+        'family = "probe"', 'family = "probe"\nignore_case = true'
+    )
+    with pytest.raises(RuleError, match="unsafe"):
+        parse_rules(text, "probe.toml")
+    case_sensitive = text.replace("ignore_case = true", "ignore_case = false")
+    assert parse_rules(case_sensitive, "probe.toml")
+
+
+# rules check warns about the shapes that stay quadratic ---------------------------------------
+
+
+@pytest.mark.parametrize("pattern", ["[a-z]+;", r"(?=\w*;)\w"])
+def test_a_single_unbounded_repeat_is_accepted_but_reported(pattern: str) -> None:
+    assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
+    assert unbounded_repeat_warning(pattern, re.IGNORECASE) is not None
+
+
+def test_a_bounded_pattern_has_no_warning() -> None:
+    assert unbounded_repeat_warning("[a-z]{1,40};", re.IGNORECASE) is None

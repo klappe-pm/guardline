@@ -37,7 +37,7 @@ guardline rules check /path/to/rules/team.toml
 
 The command validates the file, then scans each rule's fire example and look-alike example and reports a rule whose fire example does not fire it or whose look-alike does. It prints `ok: 2 rule(s) validated` when both rules behave. Messages never quote your examples.
 
-The loader also rejects patterns that can be slow on hostile text (a nested quantifier such as `(a+)+`, an alternation inside a wide repeat, more than 3 unbounded repeats, adjacent overlapping repeats such as `a*a*`, a backreference), a pattern that matches the empty string, a pattern or `unless` expression longer than 4000 characters, and an unknown key. Write patterns that are linear: bound repeats (`{0,200}` instead of `*`) wherever the text could be hostile.
+The loader also rejects patterns that can be slow on hostile text (a nested quantifier such as `(a+)+`, an alternation inside a wide repeat, more than 3 unbounded repeats, adjacent overlapping repeats such as `a*a*`, a backreference), a pattern that matches the empty string, a pattern or `unless` expression longer than 4000 characters, and an unknown key. Write patterns that are linear: bound repeats (`{0,200}` instead of `*`) wherever the text could be hostile. A pattern with an unbounded repeat that the loader accepts, such as `[a-z]+;`, still makes `guardline rules check` print a warning, because it can be quadratic on a long run of its characters.
 
 ## Turn It On
 

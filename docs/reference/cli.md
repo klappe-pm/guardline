@@ -84,7 +84,7 @@ Lists the active rules after configuration and disables. Text output is one tab 
 guardline rules check [FILE ...]
 ```
 
-With no file, validates the built-in rules and runs their examples. With files, loads them, validates every rule and runs each rule's examples against the built-in rules plus the file. Exits 0 and prints `ok: N rule(s) validated` when every rule fires on its fire example and stays quiet on its look-alike example. Otherwise it prints each problem on standard error and exits 1. A file that fails validation exits 2. Messages never quote an example.
+With no file, validates the built-in rules and runs their examples. With files, loads them, validates every rule and runs each rule's examples against the built-in rules plus the file. Exits 0 and prints `ok: N rule(s) validated` when every rule fires on its fire example and stays quiet on its look-alike example. Otherwise it prints each problem on standard error and exits 1. A file that fails validation exits 2. Messages never quote an example. For rule files named on the command line it also prints `warning: rule ID: pattern has an unbounded repeat` on standard error for each pattern or `unless` expression that holds an unbounded repeat the loader accepted; a warning does not change the exit status.
 
 ## Guardline Init
 

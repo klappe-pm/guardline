@@ -58,7 +58,7 @@ By design. The hook reads a configuration file only when its command names one w
 
 ## A Custom Rule Is Rejected
 
-`guardline rules check /path/to/rules.toml` prints the problem. The usual causes are a pattern that can be slow on hostile text (a nested quantifier such as `(a+)+`, adjacent overlapping repeats such as `a*a*`, more than 3 unbounded repeats, an alternation inside a wide repeat, a backreference), a pattern that matches the empty string, an id that is not lowercase kebab-case, or a missing `example_fires` or `example_clean`. Messages never quote your examples. See [rule file format](../reference/rule-file-format.md).
+`guardline rules check /path/to/rules.toml` prints the problem. The usual causes are a pattern that can be slow on hostile text (a nested quantifier such as `(a+)+`, adjacent overlapping repeats such as `a*a*`, more than 3 unbounded repeats, an alternation inside a wide repeat, a variable length repeat inside a repeat such as `(?:a{1,2}){0,16}`, a backreference), a pattern that matches the empty string, an id that is not lowercase kebab-case, or a missing `example_fires` or `example_clean`. Messages never quote your examples. See [rule file format](../reference/rule-file-format.md).
 
 ## Scan Says Nothing for My Shell Script
 

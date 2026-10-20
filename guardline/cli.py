@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import IO
 
 from guardline import __version__
+from guardline.audit import unbounded_repeat_warning
 from guardline.config import (
     MODES,
     Config,
@@ -327,6 +328,12 @@ def _cmd_rules(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
         problems.extend(verify_rule_examples(rule, rules))
     for problem in problems:
         err.write(problem + "\n")
+    if args.files:
+        for rule in to_check:
+            for label, source in (("pattern", rule.pattern), ("unless", rule.unless)):
+                warning = unbounded_repeat_warning(source, rule.regex.flags) if source else None
+                if warning:
+                    err.write(f"warning: rule {rule.id}: {label} {warning}\n")
     if problems:
         return 1
     out.write(f"ok: {len(to_check)} rule(s) validated\n")

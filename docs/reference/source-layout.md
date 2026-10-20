@@ -10,6 +10,7 @@ This page maps the repository: each module of the `guardline` package and each t
 | `guardline/__main__.py` | `python -m guardline` |
 | `guardline/model.py` | `Rule` and `Finding`, the scopes and family names |
 | `guardline/errors.py` | `GuardlineError`, `RuleError`, `ConfigError` |
+| `guardline/audit.py` | the regular expression audit: which shapes make a pattern super linear, and the unbounded repeat warning |
 | `guardline/rules.py` | parse, validate and verify rule files; the nested quantifier check; the built-in rule loader |
 | `guardline/shell.py` | the shell command splitter and its wrapper handling |
 | `guardline/engine.py` | `Scanner`: text, command and payload scanning, fenced code, limits |

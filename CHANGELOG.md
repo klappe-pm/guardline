@@ -46,6 +46,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Security
 
+- The rule loader audit catches the shapes that used to pass: overlaps hidden by case folding (`a*A*`), by an optional item between repeats (`\w*-?\w*`) or by non ASCII characters (`.*é*`), nested repeats inside atomic groups, bounds over 1024 (now counted as unbounded), and a variable length repeat inside a repeat that can repeat (`(?:a{1,2}){0,16}`, `(?:a+){0,4}`). `unsafe_pattern_reason` takes the rule's flags. All built-in rules still load.
+- `guardline rules check` warns, without failing, about a custom pattern or `unless` expression that holds an unbounded repeat. A single unbounded repeat is still accepted and is listed under known gaps.
 - One text value made of repeated quoted co-author or assisted-by trailer openings at the 1 MiB limit no longer takes about two seconds to scan. The two trailer rules now stop their name part at a quote or backtick and allow one closing quote before the agent name, and the footer rule's leading punctuation is possessive. A trailer whose name part contains a quote, such as `Dana's` followed by an agent name, is no longer matched; this is listed as a known gap.
 - A tool input is bounded as a whole. Six values just under the text limit each took their full scan time; now all string values of one tool input together are limited to `max_text_chars` and all command values together to `max_command_chars`, and the findings collected across values are capped at the usual 1000.
 - The hook command reads at most four times `max_text_chars` bytes from standard input, and `run_hook` refuses a longer payload before parsing it, so 8 MiB of input is a quick deny instead of a long parse.
