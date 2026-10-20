@@ -76,7 +76,7 @@ _KNOWN_KEYS = _COMMAND_KEYS | _MESSAGE_KEYS | {"edits", "file_path", "old_string
 MAX_PAYLOAD_DEPTH = 16
 """Deepest nesting of a tool input that is walked."""
 MAX_PAYLOAD_LEAVES = 2000
-"""Most string values of a tool input that are judged."""
+"""Most strings of a tool input that are judged, dictionary keys included."""
 _GIT_BINARY = "git-"
 
 
@@ -429,6 +429,12 @@ class Scanner:
 
     # payloads ---------------------------------------------------------
 
+    @staticmethod
+    def _append(out: list[tuple[str, str | None, str]], leaf: tuple[str, str | None, str]) -> None:
+        if len(out) >= MAX_PAYLOAD_LEAVES:
+            raise _TooBig
+        out.append(leaf)
+
     def _collect(
         self,
         value: Any,
@@ -440,18 +446,18 @@ class Scanner:
         if depth > MAX_PAYLOAD_DEPTH:
             raise _TooBig
         if isinstance(value, str):
-            if len(out) >= MAX_PAYLOAD_LEAVES:
-                raise _TooBig
-            out.append((path, key, value))
+            self._append(out, (path, key, value))
         elif isinstance(value, dict):
             for name, item in value.items():
                 label = name if name in _KNOWN_KEYS else "*"
+                if isinstance(name, str):
+                    # A key is text a tool may act on. It has no key of its own, so it is
+                    # judged for tokens only, and it counts toward both bounds.
+                    self._append(out, (f"{path}.{label}.<key>", None, name))
                 self._collect(item, f"{path}.{label}", name, depth + 1, out)
         elif isinstance(value, list):
             if key in _COMMAND_KEYS and value and all(isinstance(part, str) for part in value):
-                if len(out) >= MAX_PAYLOAD_LEAVES:
-                    raise _TooBig
-                out.append((path, key, " ".join(shlex.quote(part) for part in value)))
+                self._append(out, (path, key, " ".join(shlex.quote(part) for part in value)))
                 return
             for index, item in enumerate(value):
                 self._collect(item, f"{path}[{index}]", key, depth + 1, out)
@@ -503,7 +509,9 @@ class Scanner:
         an authored text key (``content``, ``new_string``, ``body``, ``message`` and
         the like) goes through ``scan_text`` with every family. Any other string goes
         through ``scan_text`` without the attribution family, so a credential in any
-        field of any tool, including an MCP tool, is found. A Write, Edit or MultiEdit
+        field of any tool, including an MCP tool, is found. A dictionary key is judged
+        the same way, as text without the attribution family, and counts toward the
+        string limit and the size bound. A Write, Edit or MultiEdit
         to a guardline configuration file is reported unless ``allow_config_edit``.
 
         Returns:

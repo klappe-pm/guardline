@@ -30,7 +30,7 @@ Attribution is about what gets published, not about every string in a command. A
 
 ## Why the Engine Owns Limits
 
-Size limits, the cap on findings and the fenced code exception live in `Scanner`, not in the entry points, so no entry point can forget them. The scanner also walks a tool payload to any depth: a key named `command` or `cmd` is a shell command, authored text keys get every family, and every other string gets the token and custom rules. Key names that Guardline does not know are labelled `*` in sources, so a key can never leak into a finding. The hook builds its scanner without configuration discovery on purpose.
+Size limits, the cap on findings and the fenced code exception live in `Scanner`, not in the entry points, so no entry point can forget them. The scanner also walks a tool payload to any depth: a key named `command` or `cmd` is a shell command, authored text keys get every family, and every other string, a dictionary key included, gets the token and custom rules. Key names that Guardline does not know are labelled `*` in sources, so a key can never leak into a finding. The hook builds its scanner without configuration discovery on purpose.
 
 The fenced exception applies only to the attribution family and is a constructor argument with no configuration key.
 

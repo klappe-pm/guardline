@@ -399,3 +399,41 @@ def test_exactly_the_leaf_limit_of_strings_is_judged_whole() -> None:
 def test_more_than_the_leaf_limit_of_strings_is_reported() -> None:
     payload = {"tool_name": "mcp__x__y", "tool_input": ["x"] * (MAX_PAYLOAD_LEAVES + 1)}
     assert "guardline-command-too-complex" in rule_ids(Scanner().scan_payload(payload))
+
+
+# a dictionary key of a tool input is text too ----------------------------------------------------
+
+
+def test_a_token_in_a_tool_input_key_is_found_without_echoing_the_key() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": {f"key = {FAKE_TOKEN}": "v"}}
+    findings = Scanner().scan_payload(payload)
+    assert any(f.family == "token" for f in findings)
+    assert FAKE_TOKEN not in repr(findings)
+    assert all("key =" not in f.source for f in findings)
+
+
+def test_a_token_in_a_nested_tool_input_key_is_found() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": {"a": [{FAKE_TOKEN: 1, "b": "v"}]}}
+    assert any(f.family == "token" for f in Scanner().scan_payload(payload))
+
+
+def test_attribution_in_a_tool_input_key_is_not_judged() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": {TRAILER: "v"}}
+    assert Scanner().scan_payload(payload) == []
+
+
+def test_keys_count_toward_the_leaf_limit() -> None:
+    entries = {f"k{i}": "x" for i in range(MAX_PAYLOAD_LEAVES // 2 + 1)}
+    payload = {"tool_name": "mcp__x__y", "tool_input": entries}
+    assert "guardline-command-too-complex" in rule_ids(Scanner().scan_payload(payload))
+
+
+def test_keys_count_toward_the_size_bound() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": {"k" * 60: "v" * 30}}
+    assert TOO_LARGE_RULE in rule_ids(Scanner(max_text_chars=80).scan_payload(payload))
+    assert Scanner(max_text_chars=100).scan_payload(payload) == []
+
+
+def test_ordinary_tool_inputs_are_unchanged_by_scanning_keys() -> None:
+    payload = {"tool_name": "Bash", "tool_input": {"command": "ls -la", "description": "list"}}
+    assert Scanner().scan_payload(payload) == []

@@ -4,7 +4,7 @@ This page describes what `guardline hook` reads, which parts of a tool call it j
 
 ## Input
 
-One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged. The command reads at most four times `max_text_chars` bytes plus one from standard input (4 MiB by default), and a payload longer than that is a deny before it is parsed, saying it is longer than the limit. Inside a payload, all string values of `tool_input` together may hold `max_text_chars` characters, and all command values together `max_command_chars`; over either, the whole tool input is refused with a `guardline-input-too-large` finding instead of being scanned value by value.
+One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged. The command reads at most four times `max_text_chars` bytes plus one from standard input (4 MiB by default), and a payload longer than that is a deny before it is parsed, saying it is longer than the limit. Inside a payload, every dictionary key is judged for tokens as text, and all string values and keys of `tool_input` together may hold `max_text_chars` characters, and all command values together `max_command_chars`; over either, the whole tool input is refused with a `guardline-input-too-large` finding instead of being scanned value by value.
 
 | field | meaning |
 | --- | --- |

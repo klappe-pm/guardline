@@ -82,7 +82,7 @@ These findings come from the engine, not from a rule file, and cannot be disable
 
 | id | meaning |
 | --- | --- |
-| `guardline-input-too-large` | the input is longer than the configured limit and was not scanned. The hook's deny reason repeats the finding's description, so it says which limit was hit. In the hook it is also raised when the string values of one tool input together, or its command values together, exceed the limit |
+| `guardline-input-too-large` | the input is longer than the configured limit and was not scanned. The hook's deny reason repeats the finding's description, so it says which limit was hit. In the hook it is also raised when the string values and dictionary keys of one tool input together, or its command values together, exceed the limit |
 | `guardline-findings-truncated` | more than 1000 findings; the rest are not listed |
 | `guardline-command-too-complex` | a shell command hit a parser limit (more than 100000 words across everything nested in it, nesting deeper than 8, or more than 5000 commands), or a tool input nests deeper than 16 levels or holds more than 2000 strings, so what was found is incomplete |
 | `guardline-config-edit` | the hook saw a Write, Edit or MultiEdit to `guardline.toml`, to a pyproject.toml that holds or receives a `[tool.guardline]` table, or to the hook's own `--config` file, a `--rules` file or a rule file named by that config's `rule_files`; allowed only by `--allow-config-edit` |
