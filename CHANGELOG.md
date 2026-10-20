@@ -46,6 +46,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Security
 
+- A tool input is bounded as a whole. Six values just under the text limit each took their full scan time; now all string values of one tool input together are limited to `max_text_chars` and all command values together to `max_command_chars`, and the findings collected across values are capped at the usual 1000.
+- The hook command reads at most four times `max_text_chars` bytes from standard input, and `run_hook` refuses a longer payload before parsing it, so 8 MiB of input is a quick deny instead of a long parse.
 - The hook's deny reason now says which limit was hit (for example "longer than 65536 characters"), names a payload that nests too deeply for the JSON parser, and reads the payload in its own try block that catches any exception, so a parser failure still blocks the call.
 - A command with thousands of `find -exec` words no longer takes quadratic time and memory in the shell splitter. A 64 KiB command took 23 s and 646 MB; each `-exec` body is now collected once.
 - A command that starts with thousands of `{` or `!` words is split in linear time. The leading keyword strip copied the word list once per keyword.

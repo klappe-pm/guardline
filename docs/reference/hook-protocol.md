@@ -4,7 +4,7 @@ This page describes what `guardline hook` reads, which parts of a tool call it j
 
 ## Input
 
-One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged.
+One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged. The command reads at most four times `max_text_chars` bytes plus one from standard input (4 MiB by default), and a payload longer than that is a deny before it is parsed, saying it is longer than the limit. Inside a payload, all string values of `tool_input` together may hold `max_text_chars` characters, and all command values together `max_command_chars`; over either, the whole tool input is refused with a `guardline-input-too-large` finding instead of being scanned value by value.
 
 | field | meaning |
 | --- | --- |
@@ -60,6 +60,7 @@ The hook never exits 1. Claude Code treats exit 1 as a non-blocking error and ru
 | a scanner exception | deny, naming the exception class only | print and allow |
 | a configuration or rule file error | deny, with the error message | print and allow |
 | input over the size limit | deny with a `guardline-input-too-large` finding | print and allow |
+| payload longer than four times `max_text_chars` | deny before parsing, naming the limit | print and allow |
 | a command too complex to split | deny with a `guardline-command-too-complex` finding | print and allow |
 
 The deny messages never contain matched text or exception messages, which could carry the input.

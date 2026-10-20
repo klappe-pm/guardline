@@ -26,6 +26,9 @@ DENY_CODE = 2
 MAX_LISTED = 10
 """Most findings named in a deny reason."""
 
+MAX_PAYLOAD_FACTOR = 4
+"""The hook refuses a payload longer than this many times the scanner's ``max_text_chars``."""
+
 
 @dataclass(frozen=True)
 class HookResult:
@@ -102,6 +105,11 @@ def run_hook(
     event = "PreToolUse"
     if not stdin_text.strip():
         return _failure("the hook payload is empty", mode, event, deny_with)
+    limit = MAX_PAYLOAD_FACTOR * scanner.max_text_chars
+    if len(stdin_text) > limit or (
+        not stdin_text.isascii() and len(stdin_text.encode("utf-8")) > limit
+    ):
+        return _failure(f"the hook payload is longer than {limit} bytes", mode, event, deny_with)
     try:
         payload: Any = json.loads(stdin_text)
     except RecursionError:

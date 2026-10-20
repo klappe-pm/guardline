@@ -19,8 +19,8 @@ The file must be a regular file of at most 1 MiB, in UTF-8, and not nested absur
 | `rule_files` | list of strings | `[]` | extra rule files; relative paths are resolved against the configuration file's directory and must stay inside it, so a configuration cannot pull in a rule file from elsewhere; a path that leaves the directory is an error. An id that a built-in rule or another file already uses is an error. |
 | `families` | list of strings | all | run only rules of these families. The `--family` option wins. An empty list is an error, because it would leave no rule to run. |
 | `exclude` | list of strings | `[]` | glob patterns of paths the file scan skips, matched against the whole path and the file name. |
-| `max_text_chars` | positive integer | `1048576` | longest text, in characters, that one scan accepts. |
-| `max_command_chars` | positive integer | `65536` | longest shell command, in characters, that one scan accepts. |
+| `max_text_chars` | positive integer | `1048576` | longest text, in characters, that one scan accepts. For the hook it also bounds all string values of one tool input together, and four times it bounds the whole payload in bytes. |
+| `max_command_chars` | positive integer | `65536` | longest shell command, in characters, that one scan accepts. For the hook it also bounds all command values of one tool input together. |
 
 A configuration that leaves no active rule is an error (`the configuration leaves no active rules`), whether it comes from an empty `families` list or from a `disable` list that names every rule. Block mode would otherwise allow everything.
 

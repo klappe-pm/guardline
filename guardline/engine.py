@@ -526,6 +526,14 @@ class Scanner:
                     "tool_input",
                 )
             )
+        # The per leaf limits would let many leaves add up to far more work than one input.
+        if sum(len(value) for _, _, value in leaves) > self.max_text_chars:
+            findings.append(self._too_large("tool_input", self.max_text_chars))
+            return findings
+        commands = sum(len(value) for _, key, value in leaves if key in _COMMAND_KEYS)
+        if commands > self.max_command_chars:
+            findings.append(self._too_large("tool_input", self.max_command_chars))
+            return findings
         for path, key, value in leaves:
             if key in _COMMAND_KEYS:
                 findings.extend(self.scan_command(value, path))
@@ -533,7 +541,9 @@ class Scanner:
                 findings.extend(self.scan_text(value, path))
             else:
                 findings.extend(self.scan_text(value, path, include_attribution=False))
-        return findings
+            if len(findings) > MAX_FINDINGS:
+                break
+        return self._finish(findings, "tool_input")
 
 
 def scan_text(text: str, **options: Any) -> list[Finding]:

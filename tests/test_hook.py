@@ -7,12 +7,14 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
 
 from guardline import Scanner
 from guardline.cli import main
+from guardline.engine import DEFAULT_MAX_TEXT_CHARS
 from guardline.hook import HookResult, deny_reason, run_hook, startup_failure
 from tests.helpers import assert_absent
 from tests.samples import FAKE_TOKEN, TRAILER
@@ -273,3 +275,53 @@ def test_a_parser_failure_other_than_bad_json_still_fails_closed(
     monkeypatch.undo()
     assert '"deny"' in result.stdout
     assert "could not be read (MemoryError)" in reason_of(result)
+
+
+# the whole payload is bounded before it is parsed -----------------------------------------------
+
+
+def test_a_payload_over_the_size_limit_is_refused_before_parsing() -> None:
+    stdin = payload(command="ls", filler="a" * (8 * DEFAULT_MAX_TEXT_CHARS))
+    started = time.perf_counter()
+    result = run_hook(stdin, Scanner())
+    assert time.perf_counter() - started < 0.5
+    assert '"deny"' in result.stdout
+    assert f"longer than {4 * DEFAULT_MAX_TEXT_CHARS} bytes" in reason_of(result)
+
+
+def test_a_payload_over_the_limit_in_bytes_but_not_in_characters_is_refused() -> None:
+    limit = 4 * DEFAULT_MAX_TEXT_CHARS
+    body = {"command": "ls", "filler": "é" * (limit // 2 + 1)}
+    stdin = json.dumps({"tool_name": "Bash", "tool_input": body}, ensure_ascii=False)
+    assert len(stdin) < limit < len(stdin.encode("utf-8"))
+    assert f"longer than {limit} bytes" in reason_of(run_hook(stdin, Scanner(), mode="block"))
+
+
+def test_a_payload_at_the_limit_is_still_judged() -> None:
+    limit = 4 * DEFAULT_MAX_TEXT_CHARS
+    stdin = payload(command="ls")
+    assert len(stdin) < limit
+    assert run_hook(stdin, Scanner()) == HookResult(0)
+
+
+def test_the_command_line_reads_only_a_bounded_amount_of_standard_input(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    limit = 4 * DEFAULT_MAX_TEXT_CHARS
+    requested: list[int] = []
+
+    class Pipe:
+        def __init__(self, data: bytes) -> None:
+            self.data = data
+
+        def read(self, size: int = -1) -> bytes:
+            requested.append(size)
+            return self.data if size < 0 else self.data[:size]
+
+    class Stdin:
+        buffer = Pipe(b"{" + b" " * (8 * DEFAULT_MAX_TEXT_CHARS) + b"}")
+
+    monkeypatch.setattr("sys.stdin", Stdin())
+    assert main(["hook", "--no-config"]) == 0
+    assert requested == [limit + 1]
+    assert "longer than" in reason_of(HookResult(0, capsys.readouterr().out))

@@ -30,7 +30,7 @@ from guardline.config import (
 from guardline.diffscan import git_diff, parse_added_lines, scan_added
 from guardline.engine import Scanner
 from guardline.errors import GuardlineError
-from guardline.hook import run_hook, startup_failure
+from guardline.hook import MAX_PAYLOAD_FACTOR, run_hook, startup_failure
 from guardline.initcmd import HOOKS, TARGETS, run_init
 from guardline.model import Finding, Rule
 from guardline.rules import builtin_rules, load_rule_file, merge_rules, verify_rule_examples
@@ -274,18 +274,24 @@ def _cmd_diff(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     return _exit_for(findings, mode)
 
 
-def _read_stdin() -> str:
-    """Read standard input as UTF-8, replacing bytes that are not valid, never raising on them."""
+def _read_stdin(limit: int | None = None) -> str:
+    """Read standard input as UTF-8, replacing bytes that are not valid, never raising on them.
+
+    With ``limit``, at most ``limit + 1`` bytes are read, so an input over the limit is
+    recognised by its length without holding all of it in memory.
+    """
     buffer = getattr(sys.stdin, "buffer", None)
     if buffer is not None:
-        return str(buffer.read().decode("utf-8", errors="replace"))
-    return sys.stdin.read()
+        data = buffer.read() if limit is None else buffer.read(limit + 1)
+        return str(data.decode("utf-8", errors="replace"))
+    return sys.stdin.read() if limit is None else sys.stdin.read(limit + 1)
 
 
 def _cmd_hook(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     try:
         scanner, mode, _ = _setup(args, hook=True)
-        result = run_hook(_read_stdin(), scanner, mode=mode, deny_with=args.deny_with)
+        payload = _read_stdin(MAX_PAYLOAD_FACTOR * scanner.max_text_chars)
+        result = run_hook(payload, scanner, mode=mode, deny_with=args.deny_with)
     except GuardlineError as error:
         message = f"configuration or rule file error ({error.__class__.__name__})"
         result = startup_failure(message, args.mode or "block", args.deny_with)

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from guardline import Scanner, scan_command, scan_payload, scan_text
 from guardline.engine import (
+    DEFAULT_MAX_COMMAND_CHARS,
+    DEFAULT_MAX_TEXT_CHARS,
     MAX_FINDINGS,
     TOO_LARGE_RULE,
     TRUNCATED_RULE,
@@ -325,3 +329,38 @@ def test_a_command_too_complex_to_split_is_one_engine_finding() -> None:
     assert [(f.rule_id, f.family) for f in findings] == [
         ("guardline-command-too-complex", "engine")
     ]
+
+
+# a payload is bounded as a whole, not only leaf by leaf ---------------------------------------
+
+
+def test_many_large_leaves_are_refused_as_a_whole() -> None:
+    leaf = "a" * (DEFAULT_MAX_TEXT_CHARS - 1)
+    edits = [{"old_string": "a", "new_string": leaf}] * 6
+    payload = {"tool_name": "MultiEdit", "tool_input": {"file_path": "x.md", "edits": edits}}
+    started = time.perf_counter()
+    findings = Scanner().scan_payload(payload)
+    assert time.perf_counter() - started < 1.0
+    assert [f.rule_id for f in findings] == ["guardline-input-too-large"]
+    assert f"longer than {DEFAULT_MAX_TEXT_CHARS} characters" in findings[0].description
+
+
+def test_command_leaves_together_are_bounded_by_the_command_limit() -> None:
+    command = "echo " + "a" * (DEFAULT_MAX_COMMAND_CHARS // 2)
+    payload = {"tool_name": "Bash", "tool_input": {"commands": [{"command": command}] * 3}}
+    findings = Scanner().scan_payload(payload)
+    assert [f.rule_id for f in findings] == ["guardline-input-too-large"]
+    assert f"longer than {DEFAULT_MAX_COMMAND_CHARS} characters" in findings[0].description
+
+
+def test_leaves_that_fit_together_are_still_judged_one_by_one() -> None:
+    payload = {"tool_name": "mcp", "tool_input": {"a": "x " * 100, "b": [f"key = {FAKE_TOKEN}"]}}
+    assert rule_ids(Scanner().scan_payload(payload)) >= {"token-github-token"}
+
+
+def test_findings_across_many_leaves_are_capped() -> None:
+    leaf = " ".join(f"{FAKE_TOKEN[:-1]}{i % 10}" for i in range(600))
+    payload = {"tool_name": "mcp", "tool_input": {"v": [leaf] * 40}}
+    findings = Scanner().scan_payload(payload)
+    assert len(findings) <= MAX_FINDINGS + 1
+    assert findings[-1].rule_id == "guardline-findings-truncated"
