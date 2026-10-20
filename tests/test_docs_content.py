@@ -35,7 +35,9 @@ def test_rule_counts_in_the_documents_match_the_rules() -> None:
     }
     assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 14, 20)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert f"{len(rules)} rules ship" in readme
+    assert f"img.shields.io/badge/rules-{len(rules)}-" in readme
+    assert f"**{len(rules)} built-in rules in three families.**" in readme
+    assert "Agent attribution (9), environment dumps (14) and token-shaped values (20)" in readme
     reference = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
     assert f"all {len(rules)} built-in rules" in reference
     assert (

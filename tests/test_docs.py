@@ -303,6 +303,44 @@ def test_every_relative_link_resolves(path: Path) -> None:
             )
 
 
+def test_the_readme_uses_only_absolute_links() -> None:
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    markdown = [t for t in LINK.findall(text) if not t.startswith("#")]
+    html = [t for t in HTML_REFERENCE.findall(text) if not t.startswith("#")]
+    relative = [t for t in markdown + html if not re.match(r"^(https://|mailto:)", t)]
+    assert not relative, relative
+    prefix = f"https://github.com/klappe-pm/{PACKAGE}/"
+    own = [t for t in markdown + html if t.startswith(prefix)]
+    assert own, "the README links nowhere inside the repository"
+
+
+def test_the_readme_follows_the_skeleton() -> None:
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    banner = (
+        f"https://raw.githubusercontent.com/klappe-pm/{PACKAGE}/main/.github/{PACKAGE}-banner.svg"
+    )
+    assert text.startswith('<p align="center">'), "the banner comes first"
+    assert banner in text.split("</p>", 1)[0]
+    assert 'width="760"' in text.split("</p>", 1)[0]
+    assert re.search(r'<h1 align="center">[A-Z][a-z]+</h1>', text)
+    assert text.count("style=flat-square&") == 6
+    assert text.count("labelColor=162233") == 6
+    order = [
+        "## Why ",
+        "## Installation",
+        "## Quick Start",
+        "## How It Works",
+        "## Commands",
+        "## Documentation",
+        "## Contributing",
+        "## Security",
+        "## License",
+    ]
+    positions = [text.index(heading) for heading in order]
+    assert positions == sorted(positions)
+    assert "\n---\n" in text
+
+
 def test_the_banner_is_an_svg_with_a_label() -> None:
     banner = (ROOT / ".github" / f"{PACKAGE}-banner.svg").read_text(encoding="utf-8")
     assert banner.startswith("<svg")
