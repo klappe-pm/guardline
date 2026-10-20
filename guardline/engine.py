@@ -76,7 +76,9 @@ _KNOWN_KEYS = _COMMAND_KEYS | _MESSAGE_KEYS | {"edits", "file_path", "old_string
 MAX_PAYLOAD_DEPTH = 16
 """Deepest nesting of a tool input that is walked."""
 MAX_PAYLOAD_LEAVES = 2000
-"""Most strings of a tool input that are judged, dictionary keys included."""
+"""Most strings of a tool input that are judged, dictionary keys not counted."""
+MAX_PAYLOAD_KEYS = 2000
+"""Most dictionary keys of a tool input that are judged."""
 _GIT_BINARY = "git-"
 
 
@@ -430,9 +432,22 @@ class Scanner:
     # payloads ---------------------------------------------------------
 
     @staticmethod
-    def _append(out: list[tuple[str, str | None, str]], leaf: tuple[str, str | None, str]) -> None:
-        if len(out) >= MAX_PAYLOAD_LEAVES:
+    def _append(
+        out: list[tuple[str, str | None, str]], keys: list[int], leaf: tuple[str, str | None, str]
+    ) -> None:
+        """Add a string, unless the input already holds the most strings that are judged."""
+        if len(out) - keys[0] >= MAX_PAYLOAD_LEAVES:
             raise _TooBig
+        out.append(leaf)
+
+    @staticmethod
+    def _append_key(
+        out: list[tuple[str, str | None, str]], keys: list[int], leaf: tuple[str, str | None, str]
+    ) -> None:
+        """Add a dictionary key, which has its own limit and is not a string of the input."""
+        if keys[0] >= MAX_PAYLOAD_KEYS:
+            raise _TooBig
+        keys[0] += 1
         out.append(leaf)
 
     def _collect(
@@ -442,25 +457,28 @@ class Scanner:
         key: str | None,
         depth: int,
         out: list[tuple[str, str | None, str]],
+        keys: list[int],
     ) -> None:
         if depth > MAX_PAYLOAD_DEPTH:
             raise _TooBig
         if isinstance(value, str):
-            self._append(out, (path, key, value))
+            self._append(out, keys, (path, key, value))
         elif isinstance(value, dict):
             for name, item in value.items():
                 label = name if name in _KNOWN_KEYS else "*"
                 if isinstance(name, str):
                     # A key is text a tool may act on. It has no key of its own, so it is
-                    # judged for tokens only, and it counts toward both bounds.
-                    self._append(out, (f"{path}.{label}.<key>", None, name))
-                self._collect(item, f"{path}.{label}", name, depth + 1, out)
+                    # judged for tokens only. It counts toward the key limit and the size
+                    # bound, and not toward the limit on strings.
+                    self._append_key(out, keys, (f"{path}.{label}.<key>", None, name))
+                self._collect(item, f"{path}.{label}", name, depth + 1, out, keys)
         elif isinstance(value, list):
             if key in _COMMAND_KEYS and value and all(isinstance(part, str) for part in value):
-                self._append(out, (path, key, " ".join(shlex.quote(part) for part in value)))
+                joined = " ".join(shlex.quote(part) for part in value)
+                self._append(out, keys, (path, key, joined))
                 return
             for index, item in enumerate(value):
-                self._collect(item, f"{path}[{index}]", key, depth + 1, out)
+                self._collect(item, f"{path}[{index}]", key, depth + 1, out, keys)
 
     def _config_edit(self, tool: Any, tool_input: Any) -> Finding | None:
         if self.allow_config_edit or tool not in _EDIT_TOOLS or not isinstance(tool_input, dict):
@@ -510,8 +528,9 @@ class Scanner:
         the like) goes through ``scan_text`` with every family. Any other string goes
         through ``scan_text`` without the attribution family, so a credential in any
         field of any tool, including an MCP tool, is found. A dictionary key is judged
-        the same way, as text without the attribution family, and counts toward the
-        string limit and the size bound. A Write, Edit or MultiEdit
+        the same way, as text without the attribution family. It counts toward the size
+        bound and toward a limit of its own, ``MAX_PAYLOAD_KEYS``, and not toward the
+        limit on strings. A Write, Edit or MultiEdit
         to a guardline configuration file is reported unless ``allow_config_edit``.
 
         Returns:
@@ -529,7 +548,7 @@ class Scanner:
             findings.append(guard)
         leaves: list[tuple[str, str | None, str]] = []
         try:
-            self._collect(tool_input, "tool_input", None, 0, leaves)
+            self._collect(tool_input, "tool_input", None, 0, leaves, [0])
         except _TooBig:
             findings.append(
                 self._engine_finding(

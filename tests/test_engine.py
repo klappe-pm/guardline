@@ -422,9 +422,30 @@ def test_attribution_in_a_tool_input_key_is_not_judged() -> None:
     assert Scanner().scan_payload(payload) == []
 
 
-def test_keys_count_toward_the_leaf_limit() -> None:
-    entries = {f"k{i}": "x" for i in range(MAX_PAYLOAD_LEAVES // 2 + 1)}
-    payload = {"tool_name": "mcp__x__y", "tool_input": entries}
+def test_keys_have_a_limit_of_their_own() -> None:
+    at_limit = {f"k{i}": None for i in range(2000)}
+    over = {f"k{i}": None for i in range(2001)}
+    assert Scanner().scan_payload({"tool_name": "mcp__x__y", "tool_input": at_limit}) == []
+    findings = Scanner().scan_payload({"tool_name": "mcp__x__y", "tool_input": over})
+    assert "guardline-command-too-complex" in rule_ids(findings)
+
+
+def test_keys_do_not_count_toward_the_string_limit() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": {"items": ["x"] * MAX_PAYLOAD_LEAVES}}
+    assert Scanner().scan_payload(payload) == []
+    payload = {"tool_name": "mcp__x__y", "tool_input": {"items": ["x"] * (MAX_PAYLOAD_LEAVES + 1)}}
+    assert "guardline-command-too-complex" in rule_ids(Scanner().scan_payload(payload))
+
+
+def test_a_multi_edit_of_999_edits_is_not_too_complex() -> None:
+    edits = [{"old_string": f"a{i}", "new_string": f"b{i}"} for i in range(999)]
+    payload = {"tool_name": "MultiEdit", "tool_input": {"file_path": "notes.txt", "edits": edits}}
+    assert "guardline-command-too-complex" not in rule_ids(Scanner().scan_payload(payload))
+
+
+def test_a_multi_edit_with_too_many_strings_is_still_too_complex() -> None:
+    edits = [{"old_string": f"a{i}", "new_string": f"b{i}"} for i in range(1000)]
+    payload = {"tool_name": "MultiEdit", "tool_input": {"file_path": "notes.txt", "edits": edits}}
     assert "guardline-command-too-complex" in rule_ids(Scanner().scan_payload(payload))
 
 
