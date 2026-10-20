@@ -60,7 +60,7 @@ Scans files, directories and standard input. With no path, or with `-`, it reads
 | `--shell` | treat the input as shell commands and run the command rules; without it only text rules run |
 | `--commit-msg` | blank the diff git appends after the scissors line (`# ---- >8 ----`) of a commit message file, keeping line numbers; comment lines above it are scanned because git keeps them for `-m` and `-F` messages |
 
-A file longer than `max_text_chars` is not read in full and yields a `guardline-input-too-large` finding. A file that cannot be read is an error (exit 2).
+A file longer than `max_text_chars` is not read in full and yields a `guardline-input-too-large` finding. A file that cannot be read is an error (exit 2). Without `--shell`, a scan needs at least one active rule with scope `text`; when the families or `disable` list leave none (for example `families = ["env-dump"]`), the command stops with exit 2 instead of passing every file. `guardline diff` has the same check.
 
 ## Guardline Diff
 
@@ -98,6 +98,8 @@ Chooses the settings and writes the configuration file in the current directory.
 2. Mode. `block` (the default) or `report`, each explained in one line.
 3. Families. A comma separated list of `attribution`, `env-dump` and `token`, or `all` (the default). When every family is chosen the `families` key is left out, so a family added in a later release is not excluded by accident.
 4. Setup snippets. `claude-code`, `pre-commit`, `both` or `none` (the default).
+
+When the chosen families include no rule that judges text (`env-dump` alone) and the `pre-commit` snippet is chosen, `init` prints a warning after the snippet, because the pre-commit hooks scan file text and would stop with a configuration error.
 
 Then it prints a unified diff of the change and asks `Write this? [y/N]`. Answering anything but `y` or `yes` writes nothing and exits 1.
 

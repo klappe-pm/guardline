@@ -615,3 +615,41 @@ def test_a_new_file_is_created_with_ordinary_permissions(run: Run, project: Path
     mode = stat.S_IMODE((project / "guardline.toml").stat().st_mode)
     assert mode & 0o600 == 0o600
     assert not mode & 0o022 or os.name == "nt"
+
+
+# a choice that leaves the pre-commit file hook with nothing to judge ----------------------------
+
+
+def test_init_warns_when_the_pre_commit_snippet_has_no_text_rule(run: Run, project: Path) -> None:
+    code, out, _ = run(
+        "init",
+        "--yes",
+        "--families",
+        "env-dump",
+        "--hook",
+        "pre-commit",
+        "--target",
+        "guardline.toml",
+    )
+    assert code == 0
+    assert "warning" in out.lower()
+    assert "no rule that judges text" in out
+
+
+@pytest.mark.parametrize("hook", ["claude-code", "none"])
+def test_init_does_not_warn_without_the_pre_commit_snippet(
+    run: Run, project: Path, hook: str
+) -> None:
+    code, out, _ = run(
+        "init", "--yes", "--families", "env-dump", "--hook", hook, "--target", "guardline.toml"
+    )
+    assert code == 0
+    assert "no rule that judges text" not in out
+
+
+def test_init_does_not_warn_when_a_text_family_is_chosen(run: Run, project: Path) -> None:
+    code, out, _ = run(
+        "init", "--yes", "--families", "token", "--hook", "pre-commit", "--target", "guardline.toml"
+    )
+    assert code == 0
+    assert "no rule that judges text" not in out

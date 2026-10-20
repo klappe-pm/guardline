@@ -22,7 +22,7 @@ The file must be a regular file of at most 1 MiB, in UTF-8, and not nested absur
 | `max_text_chars` | positive integer | `1048576` | longest text, in characters, that one scan accepts. For the hook it also bounds all string values of one tool input together, and four times it bounds the whole payload in bytes. |
 | `max_command_chars` | positive integer | `65536` | longest shell command, in characters, that one scan accepts. For the hook it also bounds all command values of one tool input together. |
 
-A configuration that leaves no active rule is an error (`the configuration leaves no active rules`), whether it comes from an empty `families` list or from a `disable` list that names every rule. Block mode would otherwise allow everything.
+A configuration that leaves no active rule is an error (`the configuration leaves no active rules`), whether it comes from an empty `families` list or from a `disable` list that names every rule. Block mode would otherwise allow everything. A configuration whose active rules include none with scope `text` is an error for `guardline scan` without `--shell` and for `guardline diff` (exit 2), because those commands judge text and would pass every file. This is what the pre-commit hooks run.
 
 Input over a limit is not scanned. It yields one `guardline-input-too-large` finding, so oversize input is reported and never passes silently.
 

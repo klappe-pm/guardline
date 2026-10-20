@@ -30,7 +30,7 @@ from guardline.config import (
 )
 from guardline.diffscan import git_diff, parse_added_lines, scan_added
 from guardline.engine import Scanner
-from guardline.errors import GuardlineError
+from guardline.errors import ConfigError, GuardlineError
 from guardline.hook import MAX_PAYLOAD_FACTOR, run_hook, startup_failure
 from guardline.initcmd import HOOKS, TARGETS, run_init
 from guardline.model import Finding, Rule
@@ -234,8 +234,23 @@ def _blank_after_scissors(text: str) -> str:
     return "".join(out)
 
 
+def _require_text_rules(scanner: Scanner) -> None:
+    """Refuse a scan of file text when no active rule judges text.
+
+    Raises:
+        ConfigError: every active rule is a command rule, so the scan would pass any file.
+    """
+    if not any(rule.scope == "text" for rule in scanner.rules):
+        raise ConfigError(
+            "no active rule judges text (scope text), so this scan would pass every file; "
+            "enable the attribution or token family, add a text rule, or scan with --shell"
+        )
+
+
 def _cmd_scan(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     scanner, mode, config = _setup(args)
+    if not args.shell:
+        _require_text_rules(scanner)
     targets = list(args.paths) or ([] if args.no_stdin else ["-"])
     findings: list[Finding] = []
 
@@ -267,6 +282,7 @@ def _cmd_scan(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
 
 def _cmd_diff(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     scanner, mode, _ = _setup(args, args.repo)
+    _require_text_rules(scanner)
     added = parse_added_lines(
         git_diff(args.repo, staged=args.staged, base=args.base, paths=args.paths)
     )

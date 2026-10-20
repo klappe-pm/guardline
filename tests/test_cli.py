@@ -523,3 +523,38 @@ def test_rules_check_warns_about_an_unbounded_repeat_but_still_passes(run, isola
 
 def test_rules_check_on_the_built_in_rules_prints_no_warning(run) -> None:  # type: ignore[no-untyped-def]
     assert run("rules", "check")[2] == ""
+
+
+# a family choice that leaves no rule for file text ---------------------------------------------
+
+
+def test_a_file_scan_with_no_text_rule_is_a_configuration_error(run, isolated: Path) -> None:  # type: ignore[no-untyped-def]
+    file = write(isolated / "s.txt", f"key = {FAKE_TOKEN}\n")
+    code, out, err = run("scan", "--no-config", "--family", "env-dump", "--no-stdin", str(file))
+    assert (code, out) == (2, "")
+    assert "no active rule judges text" in err
+    assert FAKE_TOKEN not in err
+
+
+def test_the_pre_commit_file_hooks_fail_when_the_configuration_leaves_no_text_rule(  # type: ignore[no-untyped-def]
+    run, isolated: Path
+) -> None:
+    write(isolated / "guardline.toml", 'families = ["env-dump"]\n')
+    file = write(isolated / "s.txt", f"key = {FAKE_TOKEN}\n")
+    for extra in ((), ("--commit-msg",)):
+        code, _, err = run("scan", "--mode", "block", "--no-stdin", *extra, "--", str(file))
+        assert code == 2, extra
+        assert "no active rule judges text" in err
+
+
+def test_a_shell_scan_needs_no_text_rule(run, isolated: Path) -> None:  # type: ignore[no-untyped-def]
+    file = write(isolated / "c.sh", "printenv\n")
+    code, out, _ = run("scan", "--no-config", "--family", "env-dump", "--shell", str(file))
+    assert code == 1
+    assert "env-dump-printenv" in out
+
+
+def test_a_scan_with_a_text_rule_is_unchanged(run, isolated: Path) -> None:  # type: ignore[no-untyped-def]
+    file = write(isolated / "s.txt", f"key = {FAKE_TOKEN}\n")
+    code, out, _ = run("scan", "--no-config", "--family", "token", "--no-stdin", str(file))
+    assert (code, "token-github-token" in out) == (1, True)

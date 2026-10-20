@@ -401,12 +401,19 @@ def run_init(args: argparse.Namespace, out: IO[str], cwd: Path | None = None) ->
         return 1
     write_plan(plan)
     out.write(f"\nWrote {path}\n")
-    _print_snippets(out, hooks, path, mode)
+    _print_snippets(out, hooks, path, mode, families)
     out.write("\nCheck what is active with: guardline config show\n")
     return 0
 
 
-def _print_snippets(out: IO[str], hooks: tuple[str, ...], config: Path, mode: str) -> None:
+def has_text_rule(families: tuple[str, ...]) -> bool:
+    """Whether a built-in rule of one of ``families`` judges file text."""
+    return any(rule.scope == "text" and rule.family in families for rule in builtin_rules())
+
+
+def _print_snippets(
+    out: IO[str], hooks: tuple[str, ...], config: Path, mode: str, families: tuple[str, ...]
+) -> None:
     if "claude-code" in hooks:
         command, found = hook_command(config)
         out.write(
@@ -430,6 +437,12 @@ def _print_snippets(out: IO[str], hooks: tuple[str, ...], config: Path, mode: st
     if "pre-commit" in hooks:
         out.write("\npre-commit. Add this to .pre-commit-config.yaml:\n\n")
         out.write(pre_commit_snippet(mode))
+        if not has_text_rule(families):
+            out.write(
+                "\nWarning: the families you chose have no rule that judges text, and the "
+                "pre-commit hooks scan file text, so they will stop with a configuration "
+                "error. Add the attribution or token family to run them.\n"
+            )
         if mode == "report":
             out.write(
                 "\nThe hook entries already pass --mode block, and the last --mode on the "
