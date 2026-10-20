@@ -146,7 +146,8 @@ def _first(
             return frozenset()
         return _first(rest, ignore_case, follow)  # a zero width anchor consumes nothing
     if op == _const.SUBPATTERN:
-        return _first(list(argument[3].data), ignore_case, _first(rest, ignore_case, follow))
+        inner = _scoped_case(ignore_case, argument)
+        return _first(list(argument[3].data), inner, _first(rest, ignore_case, follow))
     if _ATOMIC is not None and op == _ATOMIC:
         return _first(list(argument.data), ignore_case, _first(rest, ignore_case, follow))
     if op == _const.BRANCH:
@@ -170,6 +171,16 @@ def _first(
     return None
 
 
+def _scoped_case(ignore_case: bool, argument: Any) -> bool:
+    """Whether a group ``(?i:...)`` or ``(?-i:...)`` changes case folding inside its body."""
+    added, removed = argument[1], argument[2]
+    if added & re.IGNORECASE:
+        return True
+    if removed & re.IGNORECASE:
+        return False
+    return ignore_case
+
+
 def _is_unbounded(high: int) -> bool:
     return high == _const.MAXREPEAT or high > BIG_BOUND
 
@@ -182,8 +193,13 @@ class _Audit:
         self.unbounded = 0
 
     def walk(
-        self, items: Any, inside_wide: bool, inside_many: bool, follow: frozenset[str] | None
-    ) -> str | None:
+        self,
+        items: Any,
+        inside_wide: bool,
+        inside_many: bool,
+        follow: frozenset[str] | None,
+        incoming: frozenset[str] | None = None,
+    ) -> tuple[str | None, frozenset[str] | None]:
         """Audit a sequence.
 
         Args:
@@ -191,9 +207,15 @@ class _Audit:
             inside_wide: it sits in a repeat that is unbounded or allows over 16 repetitions.
             inside_many: it sits in a repeat that allows more than one repetition.
             follow: the characters that can come right after the sequence, as ``_first``.
+            incoming: the characters of a wide repeat that ends right before the sequence.
+
+        Returns:
+            The reason the sequence is unsafe, or None, and the characters of the wide
+            repeat the sequence ends with, so that a group or an alternation does not hide
+            an overlap with the repeat after it.
         """
         data = list(items.data)
-        previous: frozenset[str] | None = None
+        previous = incoming
         for index, (op, argument) in enumerate(data):
             after = _first(data[index + 1 :], self.ignore_case, follow)
             if op in _REPEATS:
@@ -202,11 +224,12 @@ class _Audit:
                     low, high, body, previous, after, inside_wide, inside_many
                 )
             else:
-                previous = None
-                reason = self._other(op, argument, inside_wide, inside_many, after)
+                reason, previous = self._other(
+                    op, argument, inside_wide, inside_many, after, previous
+                )
             if reason:
-                return reason
-        return None
+                return reason, previous
+        return None, previous
 
     def _repeat(
         self,
@@ -245,28 +268,53 @@ class _Audit:
         if high > 1:
             again = _first(list(body.data), self.ignore_case, None)
             inner_follow = None if again is None or after is None else again | after
-        reason = self.walk(body, inside_wide or wide, inside_many or high > 1, inner_follow)
+        reason, _ = self.walk(body, inside_wide or wide, inside_many or high > 1, inner_follow)
         return reason, carried
 
     def _other(
-        self, op: Any, argument: Any, inside_wide: bool, inside_many: bool, after: Any
-    ) -> str | None:
+        self,
+        op: Any,
+        argument: Any,
+        inside_wide: bool,
+        inside_many: bool,
+        after: Any,
+        previous: frozenset[str] | None,
+    ) -> tuple[str | None, frozenset[str] | None]:
         if op in _GROUPREFS:
-            return "backreference"
+            return "backreference", None
         if op == _const.BRANCH:
-            if inside_wide:
-                return "alternation inside a wide repeat"
-            for branch in argument[1]:
-                reason = self.walk(branch, inside_wide, inside_many, after)
-                if reason:
-                    return reason
-        elif op == _const.SUBPATTERN:
-            return self.walk(argument[3], inside_wide, inside_many, after)
-        elif _ATOMIC is not None and op == _ATOMIC:
-            return self.walk(argument, inside_wide, inside_many, after)
-        elif op in (_const.ASSERT, _const.ASSERT_NOT):
-            return self.walk(argument[1], inside_wide, inside_many, None)
-        return None
+            return self._branch(argument[1], inside_wide, inside_many, after, previous)
+        if op == _const.SUBPATTERN:
+            saved = self.ignore_case
+            self.ignore_case = _scoped_case(saved, argument)
+            try:
+                return self.walk(argument[3], inside_wide, inside_many, after, previous)
+            finally:
+                self.ignore_case = saved
+        if _ATOMIC is not None and op == _ATOMIC:
+            return self.walk(argument, inside_wide, inside_many, after, previous)
+        if op in (_const.ASSERT, _const.ASSERT_NOT):
+            reason, _ = self.walk(argument[1], inside_wide, inside_many, None)
+            return reason, None
+        return None, None
+
+    def _branch(
+        self,
+        branches: Any,
+        inside_wide: bool,
+        inside_many: bool,
+        after: Any,
+        previous: frozenset[str] | None,
+    ) -> tuple[str | None, frozenset[str] | None]:
+        if inside_wide:
+            return "alternation inside a wide repeat", None
+        trailing: set[str] = set()
+        for branch in branches:
+            reason, ends = self.walk(branch, inside_wide, inside_many, after, previous)
+            if reason:
+                return reason, None
+            trailing |= ends or set()
+        return None, frozenset(trailing) if trailing else None
 
 
 def _parse(pattern: str, flags: int) -> Any:
@@ -304,7 +352,8 @@ def unsafe_pattern_reason(pattern: str, flags: int = 0) -> str | None:
     parsed = _parse(pattern, flags)
     if parsed is None:
         return None
-    return _Audit(_ignores_case(parsed, flags)).walk(parsed, False, False, frozenset())
+    reason, _ = _Audit(_ignores_case(parsed, flags)).walk(parsed, False, False, frozenset())
+    return reason
 
 
 def _has_unbounded(items: Any) -> bool:

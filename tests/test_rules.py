@@ -251,6 +251,17 @@ AUDIT_BYPASSES = {
     r"(?:(?:a{0,16}){0,16});": "a" * 24,
     r"(?:(?:(?:a{0,16}){0,16}){0,16});": "a" * 12,
     r"(?:a{1,2}){0,16};": "a" * 1000,
+    r"(a*)a*;": "a" * 1500,
+    r"a*(a*);": "a" * 1500,
+    r"(a*)(a*);": "a" * 1500,
+    r"(?i:a*)a*;": "a" * 1500,
+    r"(?s:a*)a*;": "a" * 1500,
+    r"(?P<n>a*)a*;": "a" * 1500,
+    r"a*(?:x|a*);": "a" * 1500,
+    r"(?:x|a*)a*;": "a" * 1500,
+    r"\w+(-?)\w+;": "a" * 1500,
+    r"(\w*)-?\w*;": "a" * 1500,
+    r"\s*(\s*)x": " " * 1500,
 }
 
 
@@ -299,6 +310,28 @@ def test_every_builtin_pattern_passes_the_audit_with_its_own_flags(rule: Rule) -
 )
 def test_ordinary_shapes_are_still_accepted(pattern: str) -> None:
     assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        r"(?:ab|cd){0,4}x",
+        r"(?:foo|bar){1,3};",
+        r"(\d+)(?:\.\d+)?",
+        r"(a*)b*;",
+        r"a*(?:x|y);",
+        r"(?:x|y)a*;",
+        r"(?i:a*)b*;",
+        r"(?:a|b)x{0,16}",
+    ],
+)
+def test_groups_and_alternations_that_cannot_overlap_are_accepted(pattern: str) -> None:
+    assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
+
+
+def test_a_scoped_case_flag_is_seen_inside_a_group() -> None:
+    assert unsafe_pattern_reason(r"(?i:a*)A*;", 0) is not None
+    assert unsafe_pattern_reason(r"(?i:a*)b*;", 0) is None
 
 
 def test_a_bound_over_1024_counts_as_unbounded() -> None:
