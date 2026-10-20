@@ -336,6 +336,13 @@ def test_a_scoped_case_flag_is_seen_inside_a_group() -> None:
     assert unsafe_pattern_reason(r"(?i:a*)b*;", 0) is None
 
 
+@pytest.mark.parametrize("pattern", [r"(a)*a*;", r"(?:ab)*(?:ab)*;", r"a*(?=a)a*;"])
+def test_documented_audit_gap_is_still_open(pattern: str) -> None:
+    """Pinned by the known gaps in docs/explanation/security-model.md."""
+    assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
+    assert unbounded_repeat_warning(pattern, re.IGNORECASE) is not None
+
+
 def test_a_bound_over_1024_counts_as_unbounded() -> None:
     assert unsafe_pattern_reason(r"a{0,2000}b{0,2000}c{0,2000}d{0,2000}") == (
         "more than 3 unbounded repeats"
