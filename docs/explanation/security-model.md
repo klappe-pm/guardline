@@ -59,7 +59,7 @@ In block mode the hook denies when it cannot judge: no payload, a payload that i
 
 A guard that can be made slow can be made to time out, and a hook that times out may let the call through. The mitigations are layered, and none is the only one:
 
-- input over 1 MiB of text or 64 KiB of shell command is not scanned and is reported as a finding (the limits are configurable);
+- input over 1 MiB of text or 64 KiB of shell command is not scanned and is reported as a finding (the limits are configurable, but a configuration may not raise them above 16 MiB of text and 1 MiB of shell command, so a value too large to allocate is a configuration error and not a crash);
 - the shell lexer shares a budget of 100000 tokens across a command and everything nested in it, stops at nesting depth 8 and at 5000 commands, and each of those limits yields a `guardline-command-too-complex` finding rather than silence;
 - no built-in pattern fails the loader audit; prefix patterns start at a token boundary, repeats are bounded wherever the text can be hostile, and possessive repeats avoid backtracking;
 - a tool input is walked to depth 16 and 2000 strings, all its string values together may hold `max_text_chars` characters and all its command values together `max_command_chars`, and findings stop being collected once more than 1000 exist;

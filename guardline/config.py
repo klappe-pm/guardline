@@ -24,6 +24,10 @@ from guardline.rules import builtin_rules, load_rule_file, merge_rules
 
 MODES = ("report", "block")
 CONFIG_NAMES = ("guardline.toml", "pyproject.toml")
+MAX_TEXT_CHARS_CAP = 16 * 1024 * 1024
+"""Largest ``max_text_chars`` a configuration may set: 16 MiB of characters."""
+MAX_COMMAND_CHARS_CAP = 1024 * 1024
+"""Largest ``max_command_chars`` a configuration may set: 1 MiB of characters."""
 _KEYS = frozenset(
     {"mode", "disable", "rule_files", "families", "exclude", "max_text_chars", "max_command_chars"}
 )
@@ -61,12 +65,14 @@ def _string_list(table: dict[str, Any], key: str, origin: Path) -> tuple[str, ..
     return tuple(value)
 
 
-def _limit(table: dict[str, Any], key: str, origin: Path) -> int | None:
+def _limit(table: dict[str, Any], key: str, origin: Path, cap: int) -> int | None:
     value = table.get(key)
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ConfigError(f"{origin}: {key} must be a positive integer")
+    if value > cap:
+        raise ConfigError(f"{origin}: {key} must be a positive integer of at most {cap}")
     return value
 
 
@@ -104,8 +110,8 @@ def config_from_table(table: dict[str, Any], origin: Path) -> Config:
         rule_files=_confined(_string_list(table, "rule_files", origin), origin),
         families=families,
         exclude=_string_list(table, "exclude", origin),
-        max_text_chars=_limit(table, "max_text_chars", origin),
-        max_command_chars=_limit(table, "max_command_chars", origin),
+        max_text_chars=_limit(table, "max_text_chars", origin, MAX_TEXT_CHARS_CAP),
+        max_command_chars=_limit(table, "max_command_chars", origin, MAX_COMMAND_CHARS_CAP),
         origin=origin,
     )
 

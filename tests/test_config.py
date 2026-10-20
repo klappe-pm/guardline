@@ -7,7 +7,10 @@ from pathlib import Path
 
 import pytest
 
+from guardline.cli import main
 from guardline.config import (
+    MAX_COMMAND_CHARS_CAP,
+    MAX_TEXT_CHARS_CAP,
     Config,
     build_ruleset,
     build_scanner,
@@ -76,6 +79,33 @@ def test_invalid_configuration(tmp_path: Path, body: str, fragment: str) -> None
     file.write_text(body + "\n", encoding="utf-8")
     with pytest.raises(ConfigError, match=fragment):
         load_config_file(file)
+
+
+def test_the_size_limits_stop_at_a_cap(tmp_path: Path) -> None:
+    assert (MAX_TEXT_CHARS_CAP, MAX_COMMAND_CHARS_CAP) == (16 * 1024 * 1024, 1024 * 1024)
+    ok = config_from_table(
+        {"max_text_chars": MAX_TEXT_CHARS_CAP, "max_command_chars": MAX_COMMAND_CHARS_CAP},
+        tmp_path / "g.toml",
+    )
+    assert (ok.max_text_chars, ok.max_command_chars) == (MAX_TEXT_CHARS_CAP, MAX_COMMAND_CHARS_CAP)
+    for key, cap in (
+        ("max_text_chars", MAX_TEXT_CHARS_CAP),
+        ("max_command_chars", MAX_COMMAND_CHARS_CAP),
+    ):
+        with pytest.raises(ConfigError, match=f"{key} must be.*at most {cap}"):
+            config_from_table({key: cap + 1}, tmp_path / "g.toml")
+
+
+def test_a_huge_size_limit_is_a_configuration_error_not_a_crash(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = tmp_path / "g.toml"
+    config.write_text("max_text_chars = 100000000000\n", encoding="utf-8")
+    (tmp_path / "s.txt").write_text("x\n", encoding="utf-8")
+    assert main(["scan", "--config", str(config), "--no-stdin", str(tmp_path / "s.txt")]) == 2
+    err = capsys.readouterr().err
+    assert "max_text_chars" in err
+    assert "internal error" not in err
 
 
 def test_unreadable_configuration(tmp_path: Path) -> None:
