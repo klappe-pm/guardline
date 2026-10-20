@@ -346,7 +346,7 @@ def _is_operator(token: str) -> bool:
 
 def _heredocs(line: str) -> list[tuple[str, bool]]:
     """Return (delimiter, body_is_commands) for each heredoc operator on one line."""
-    if "((" in line:
+    if "((" in line or "${" in line or "$[" in line:
         return []
     try:
         tokens = _lex(line)

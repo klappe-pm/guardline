@@ -26,7 +26,7 @@ The product link rule decides by host. A link to an issue, pull request, release
 
 ## Env-Dump
 
-Environment dump rules judge shell commands, one simple command at a time, after the splitter has looked through pipes, `&&`, `;`, newlines, subshells, `$(...)`, backticks, heredocs, here-strings and wrappers: `bash -c` and the other shells, `eval`, `env VAR=val cmd`, `env -S`, `sudo`, `doas`, `command`, `exec`, `nohup`, `time`, `nice`, `timeout`, `stdbuf`, `unbuffer`, `caffeinate`, `script`, `watch`, `xargs`, `find -exec`, `ssh host cmd`, `docker` and `podman` `exec` and `run`, `docker compose exec`, `kubectl exec --` and `op run --`.
+Environment dump rules judge shell commands, one simple command at a time, after the splitter has looked through pipes, `&&`, `;`, newlines, subshells, `$(...)`, backticks, heredocs (a `<<` on a line that holds `((`, `${` or `$[` is a shift or a default and opens none), here-strings and wrappers: `bash -c` and the other shells, `eval`, `env VAR=val cmd`, `env -S`, `sudo`, `doas`, `command`, `exec`, `nohup`, `time`, `nice`, `timeout`, `stdbuf`, `unbuffer`, `caffeinate`, `script`, `watch`, `xargs`, `find -exec`, `ssh host cmd`, `docker` and `podman` `exec` and `run`, `docker compose exec`, `kubectl exec --` and `op run --`.
 
 | rule id | scope | what it catches |
 | --- | --- | --- |

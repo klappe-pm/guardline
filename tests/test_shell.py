@@ -195,3 +195,23 @@ def test_other_quoted_operators_are_words_too(quoted: str) -> None:
 def test_a_real_heredoc_of_data_stays_data() -> None:
     assert Scanner().scan_command("cat <<EOF\nprintenv\nEOF") == []
     assert Scanner().scan_command("cat <<-EOF\nprintenv\nEOF") == []
+
+
+# a shift or a default inside an expansion is not a heredoc operator -------------------------
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo ${x:-a<<b}\nprintenv\nb}",
+        "echo ${x:-a << b}\nprintenv\nb}",
+        "echo ${x#<<}\nprintenv\n}",
+        "echo $[1<<2]\nprintenv\n2]",
+    ],
+)
+def test_a_shift_or_default_inside_an_expansion_opens_no_heredoc(command: str) -> None:
+    assert "env-dump-printenv" in {f.rule_id for f in Scanner().scan_command(command)}
+
+
+def test_a_real_heredoc_after_an_expansion_on_another_line_stays_data() -> None:
+    assert Scanner().scan_command("echo ${HOME}\ncat <<EOF\nprintenv\nEOF") == []
