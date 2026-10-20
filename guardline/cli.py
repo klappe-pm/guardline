@@ -41,7 +41,7 @@ SCISSORS = re.compile(r"# -+ >8 -+[ \t]*")
 
 
 def _common_parser() -> argparse.ArgumentParser:
-    parent = argparse.ArgumentParser(add_help=False)
+    parent = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     parent.add_argument("--config", type=Path, help="read this guardline.toml or pyproject.toml")
     parent.add_argument("--no-config", action="store_true", help="ignore every configuration file")
     parent.add_argument("--mode", choices=("report", "block"), help="report exits 0, block exits 1")
@@ -58,12 +58,16 @@ def _common_parser() -> argparse.ArgumentParser:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the ``guardline`` command."""
-    parser = argparse.ArgumentParser(prog="guardline", description=__doc__.split("\n")[0])
+    parser = argparse.ArgumentParser(
+        prog="guardline", allow_abbrev=False, description=__doc__.split("\n")[0]
+    )
     parser.add_argument("--version", action="version", version=f"guardline {__version__}")
     common = _common_parser()
     sub = parser.add_subparsers(dest="command", required=True)
 
-    hook = sub.add_parser("hook", parents=[common], help="judge a tool call payload on stdin")
+    hook = sub.add_parser(
+        "hook", parents=[common], allow_abbrev=False, help="judge a tool call payload on stdin"
+    )
     hook.add_argument("--deny-with", choices=("json", "exit-code"), default="json")
     hook.add_argument(
         "--allow-config-edit",
@@ -71,33 +75,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="let the agent write guardline configuration files (a person's decision)",
     )
 
-    scan = sub.add_parser("scan", parents=[common], help="scan files, directories or stdin")
+    scan = sub.add_parser(
+        "scan", parents=[common], allow_abbrev=False, help="scan files, directories or stdin"
+    )
     scan.add_argument("paths", nargs="*", type=str, help="files or directories; - reads stdin")
     scan.add_argument("--format", choices=("text", "json"), default="text")
     scan.add_argument("--shell", action="store_true", help="treat the input as shell commands")
+    scan.add_argument(
+        "--no-stdin",
+        action="store_true",
+        help="treat - as a file name and read standard input only when asked",
+    )
     scan.add_argument(
         "--commit-msg",
         action="store_true",
         help="ignore the diff git appends after the scissors line of a commit message file",
     )
 
-    diff = sub.add_parser("diff", parents=[common], help="scan the lines a git diff adds")
+    diff = sub.add_parser(
+        "diff", parents=[common], allow_abbrev=False, help="scan the lines a git diff adds"
+    )
     diff.add_argument("--staged", action="store_true", help="scan the index, not the work tree")
     diff.add_argument("--base", help="compare against this revision")
     diff.add_argument("--repo", type=Path, default=Path("."), help="the repository directory")
     diff.add_argument("--format", choices=("text", "json"), default="text")
     diff.add_argument("paths", nargs="*", type=str)
 
-    rules = sub.add_parser("rules", parents=[common], help="list or check rules")
+    rules = sub.add_parser(
+        "rules", parents=[common], allow_abbrev=False, help="list or check rules"
+    )
     actions = rules.add_subparsers(dest="action", required=True)
-    listing = actions.add_parser("list", help="list the active rules")
+    listing = actions.add_parser("list", allow_abbrev=False, help="list the active rules")
     listing.add_argument("--format", choices=("text", "json"), default="text")
-    check = actions.add_parser("check", help="validate rule files and run their examples")
+    check = actions.add_parser(
+        "check", allow_abbrev=False, help="validate rule files and run their examples"
+    )
     check.add_argument(
         "files", nargs="*", type=Path, help="rule files; default is the built-in rules"
     )
 
-    init = sub.add_parser("init", help="choose a mode and rule families and write the config")
+    init = sub.add_parser(
+        "init", allow_abbrev=False, help="choose a mode and rule families and write the config"
+    )
     init.add_argument("--mode", choices=MODES, help="block stops the action, report only prints")
     init.add_argument("--families", help="comma separated families to enable, or all")
     init.add_argument("--target", choices=TARGETS, help="the file to write the configuration to")
@@ -111,9 +130,13 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--yes", action="store_true", help="accept the default for every question")
     init.add_argument("--force", action="store_true", help="replace an existing configuration")
 
-    config = sub.add_parser("config", parents=[common], help="show the effective configuration")
+    config = sub.add_parser(
+        "config", parents=[common], allow_abbrev=False, help="show the effective configuration"
+    )
     config_actions = config.add_subparsers(dest="action", required=True)
-    show = config_actions.add_parser("show", help="print what is active and where it came from")
+    show = config_actions.add_parser(
+        "show", allow_abbrev=False, help="print what is active and where it came from"
+    )
     show.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
@@ -208,7 +231,7 @@ def _blank_after_scissors(text: str) -> str:
 
 def _cmd_scan(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     scanner, mode, config = _setup(args)
-    targets = list(args.paths) or ["-"]
+    targets = list(args.paths) or ([] if args.no_stdin else ["-"])
     findings: list[Finding] = []
 
     def judge(text: str, source: str) -> list[Finding]:
@@ -217,9 +240,9 @@ def _cmd_scan(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
         return scanner.scan_command(text, source) if args.shell else scanner.scan_text(text, source)
 
     for target in targets:
-        if target == "-":
+        if target == "-" and not args.no_stdin:
             findings.extend(judge(_read_stdin(), "<stdin>"))
-    files = [t for t in targets if t != "-"]
+    files = [t for t in targets if t != "-" or args.no_stdin]
     for path, skipped in _walk(files, config.exclude):
         if skipped:
             findings.append(scanner.skipped_finding(str(path)))

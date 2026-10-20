@@ -40,7 +40,7 @@ If you keep the mode in the file, keep the file where the agent cannot write it.
 
 ## apply-the-mode-in-pre-commit
 
-The two pre-commit hooks pass `--mode block` themselves, and the last `--mode` on a command line wins. To use report mode, set it in the hook arguments. `guardline init --hook pre-commit` prints this for you:
+The two pre-commit hooks pass `--mode block` themselves, and the last `--mode` on a command line wins. To use report mode, set it in the hook arguments, and end them with `--`: your `args` replace the hook's own, and the `--` is what keeps a staged file named like an option from being read as one. `guardline init --hook pre-commit` prints this for you:
 
 ```yaml
 repos:
@@ -48,9 +48,9 @@ repos:
     rev: main
     hooks:
       - id: guardline
-        args: [--mode, report]
+        args: [--mode, report, --]
       - id: guardline-commit-msg
-        args: [--mode, report]
+        args: [--mode, report, --]
 ```
 
 The rule families in your configuration file still apply, because the scan hooks find the file by searching up from the repository.

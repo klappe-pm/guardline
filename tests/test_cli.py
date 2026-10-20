@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import io
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ import pytest
 
 from guardline import builtin_rules
 from guardline.cli import _blank_after_scissors, build_parser, main
-from tests.helpers import assert_absent
+from tests.helpers import assert_absent, manifest_hooks, pre_commit_argv
 from tests.samples import AGENT, CLEAN_COMMIT, COMMIT_WITH_TRAILER, FAKE_TOKEN, TRAILER
 
 
@@ -382,3 +383,123 @@ def test_an_unexpected_error_in_scan_exits_two_without_the_message(  # type: ign
     captured = capsys.readouterr()
     assert "internal error (RuntimeError)" in captured.err
     assert_absent(FAKE_TOKEN, captured.out, captured.err)
+
+
+# a staged file name is data, never an option -------------------------------------------------
+
+
+def run_precommit(
+    argv: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> int:
+    monkeypatch.setattr("sys.stdin", io.StringIO(""))
+    try:
+        code = main(argv)
+    except SystemExit as stop:  # --help leaves through argparse with code 0
+        code = int(stop.code or 0)
+    capsys.readouterr()
+    return code
+
+
+@pytest.mark.parametrize("name", ["--mode=report", "--help", "--family=env-dump"])
+def test_a_file_name_that_looks_like_an_option_cannot_change_the_scan(
+    name: str,
+    isolated: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    write(isolated / "secret.txt", f"key = {FAKE_TOKEN}\n")
+    write(isolated / name, "x\n")
+    argv = pre_commit_argv("guardline", [name, "secret.txt"])
+    assert run_precommit(argv, monkeypatch, capsys) == 1
+
+
+@pytest.mark.parametrize("name", ["--mode=report", "--help"])
+def test_a_report_mode_override_keeps_the_terminator(
+    name: str,
+    isolated: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A user's args replace the manifest's, so the init snippet has to carry the --."""
+    write(isolated / "secret.txt", f"key = {FAKE_TOKEN}\n")
+    write(isolated / name, "x\n")
+    argv = pre_commit_argv("guardline", [name, "secret.txt"], ["--mode", "report", "--"])
+    assert run_precommit(argv, monkeypatch, capsys) == 0
+    assert not (isolated / "report").exists()
+
+
+def test_a_file_named_dash_is_scanned_as_a_file_not_stdin(
+    isolated: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    write(isolated / "-", f"key = {FAKE_TOKEN}\n")
+    argv = pre_commit_argv("guardline", ["-"])
+    assert run_precommit(argv, monkeypatch, capsys) == 1
+
+
+def test_no_stdin_scans_nothing_when_no_path_is_given(
+    run,
+    isolated: Path,  # type: ignore[no-untyped-def]
+) -> None:
+    code, out, _ = run("scan", "--no-stdin", stdin=f"key = {FAKE_TOKEN}\n")
+    assert (code, out) == (0, "")
+
+
+def test_stdin_is_still_the_default_without_no_stdin(run) -> None:  # type: ignore[no-untyped-def]
+    code, out, _ = run("scan", "-", stdin=f"key = {FAKE_TOKEN}\n")
+    assert code == 1
+    assert "token-github-token" in out
+
+
+def test_both_hooks_end_their_options_and_ignore_stdin() -> None:
+    hooks = manifest_hooks()
+    for hook_id in ("guardline", "guardline-commit-msg"):
+        hook = hooks[hook_id]
+        assert "--no-stdin" in hook["entry"], hook_id
+        assert hook["args"] == ["--"], hook_id
+
+
+def test_the_file_hook_does_not_filter_on_the_text_tag() -> None:
+    """pre-commit's identify tags a file with a NUL byte, or a .pdf name, as binary.
+
+    guardline strips NUL and decodes with replacement precisely so that such files are
+    judged, so the hook must not hand it only the files tagged as text.
+    """
+    types = manifest_hooks()["guardline"]["types"]
+    assert "text" not in types
+    assert types == ["file"]
+
+
+def all_parsers(parser: argparse.ArgumentParser) -> list[argparse.ArgumentParser]:
+    found = [parser]
+    for action in parser._actions:  # noqa: SLF001 - the only way to reach subparsers
+        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+            for child in action.choices.values():
+                found.extend(all_parsers(child))
+    return found
+
+
+def test_no_parser_accepts_an_abbreviated_option() -> None:
+    parsers = all_parsers(build_parser())
+    assert len(parsers) >= 10
+    assert [p.prog for p in parsers if p.allow_abbrev] == []
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["scan", "--mod", "report"],
+        ["scan", "--fam", "token"],
+        ["hook", "--deny", "exit-code"],
+        ["diff", "--stag"],
+        ["rules", "list", "--form", "json"],
+        ["config", "show", "--form", "json"],
+        ["init", "--yes", "--for"],
+    ],
+)
+def test_an_abbreviated_option_is_a_usage_error(
+    argv: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as stop:
+        main(argv)
+    assert stop.value.code == 2
+    capsys.readouterr()

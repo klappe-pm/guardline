@@ -34,6 +34,8 @@ These options are accepted by `hook`, `scan`, `diff`, `rules` and `config`. They
 | `--family NAME` | run only rules of this family; repeatable; overrides the configured `families` |
 | `--allow-fenced-attribution` | do not report attribution inside a closed fenced code block |
 
+Option names must be written in full: every parser is created with abbreviations off, so `--mod` is a usage error rather than `--mode`. A file name that looks like an option cannot change a scan when it follows `--`, which the pre-commit hooks pass.
+
 ## guardline-hook
 
 ```text
@@ -45,15 +47,16 @@ Reads one tool call payload on standard input and judges it. The hook never disc
 ## guardline-scan
 
 ```text
-guardline scan [common options] [--format text|json] [--shell] [--commit-msg] [PATH ...]
+guardline scan [common options] [--format text|json] [--shell] [--no-stdin] [--commit-msg] [--] [PATH ...]
 ```
 
-Scans files, directories and standard input. With no path, or with `-`, it reads standard input and calls the source `<stdin>`. A directory is walked recursively and `.git` is the only directory never entered; `node_modules`, virtual environments and the like are scanned unless the configured `exclude` globs skip them. Binary files are scanned too, with NUL characters removed. A symbolic link or special file found in a directory walk is not read; it is reported as a `guardline-file-skipped` finding, so in block mode it fails the run. A file named on the command line is always read, even if it is a link.
+Scans files, directories and standard input. With no path, or with `-`, it reads standard input and calls the source `<stdin>`; `--no-stdin` turns that off, so `-` is a file name and no path scans nothing. A directory is walked recursively and `.git` is the only directory never entered; `node_modules`, virtual environments and the like are scanned unless the configured `exclude` globs skip them. Binary files are scanned too, with NUL characters removed. A symbolic link or special file found in a directory walk is not read; it is reported as a `guardline-file-skipped` finding, so in block mode it fails the run. A file named on the command line is always read, even if it is a link.
 
 | option | meaning |
 | --- | --- |
 | `--format text` | one line per finding: `source:line:column: rule [family] description` (default) |
 | `--format json` | one JSON document: `version`, `mode`, `blocked` and `findings` |
+| `--no-stdin` | treat `-` as a file name and never read standard input; the pre-commit hooks use it |
 | `--shell` | treat the input as shell commands and run the command rules; without it only text rules run |
 | `--commit-msg` | blank the diff git appends after the scissors line (`# ---- >8 ----`) of a commit message file, keeping line numbers; comment lines above it are scanned because git keeps them for `-m` and `-F` messages |
 
@@ -109,7 +112,7 @@ Then it prints a unified diff of the change and asks `Write this? [y/N]`. Answer
 
 Without `--force`, an existing `guardline.toml` or an existing `[tool.guardline]` table is an error (exit 2) and nothing is written. Two cases are errors even with `--force`: a `pyproject.toml` target while a `guardline.toml` sits in the same directory, because that file takes precedence and would hide the new table, and a `pyproject.toml` whose `guardline` table is defined in a way that cannot be rewritten safely, such as dotted keys under `[tool]`. The new file text is parsed again before it is written, so the file always loads.
 
-The `claude-code` snippet is the `PreToolUse` settings entry for `guardline hook --config ABSOLUTE_PATH`. The hook never searches for configuration, so the snippet names the file you just wrote. The path of the `guardline` command is the one that is running, or the one found on `PATH`; when neither is found the snippet uses the bare name and says so. The `pre-commit` snippet adds `args: [--mode, report]` to both hooks when the mode is `report`, because the hook entries pass `--mode block` themselves and the last `--mode` wins.
+The `claude-code` snippet is the `PreToolUse` settings entry for `guardline hook --config ABSOLUTE_PATH`. The hook never searches for configuration, so the snippet names the file you just wrote. The path of the `guardline` command is the one that is running, or the one found on `PATH`; when neither is found the snippet uses the bare name and says so. The `pre-commit` snippet adds `args: [--mode, report, --]` to both hooks when the mode is `report`, because the hook entries pass `--mode block` themselves and the last `--mode` wins. The trailing `--` is kept because `args` replaces the hook's own `args`, which is `--`.
 
 ## guardline-config-show
 

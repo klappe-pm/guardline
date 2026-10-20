@@ -42,6 +42,10 @@ Out of scope:
 
 The hook ignores any configuration file it discovers, so an agent that writes `guardline.toml` or a `[tool.guardline]` table with `mode = "report"` or a long `disable` list changes nothing for the hook. As a second layer it denies a Write, Edit or MultiEdit (and NotebookEdit) whose target is any file named `guardline.toml`, a `pyproject.toml` whose new text or existing content mentions `tool.guardline`, or one of the hook's own `--config` or `--rules` files. The finding is `guardline-config-edit` and a person lifts it with `--allow-config-edit`. A shell command that writes such a file is not covered by this second layer, which is why the hook does not read discovered files at all.
 
+## pre-commit-and-file-names
+
+A pre-commit hook receives file names the author chose, and a name can look like an option. The hook entries therefore end their options with `--` (the manifest's `args`) and pass `--no-stdin`, so a staged file called `--mode=report`, `--help`, `--family=env-dump` or `-` is a file to scan and cannot switch the scan to report mode, narrow its families, print help and exit 0, or turn into a read of standard input. A user's own `args` replace the manifest's, so the snippet from `guardline init` ends its `args` with `--` too. Every parser also refuses abbreviated option names, so a name that happens to start an option cannot be completed into one. The file hook matches `types: [file]` rather than `types: [text]`, because pre-commit's text tag leaves out a file with a NUL byte or a name like `.pdf`, and guardline strips NUL and decodes with replacement precisely so that such a file is judged.
+
 ## how-the-hook-fails
 
 In block mode the hook denies when it cannot judge: no payload, a payload that is not JSON, a configuration or rule file error, a scanner exception, input over the size limit, a command that hit a parser limit, and a tool input that nests deeper than 16 levels or holds more than 2000 strings. Invalid bytes on standard input are replaced and the payload is still judged. It never uses exit status 1 for a block, because Claude Code treats that as a non-blocking error. In report mode every one of those only prints. Deny messages name rule ids, positions and exception class names; they never contain the input, a matched value, an exception message, or a key from a rule file.
@@ -100,6 +104,7 @@ These are cases a person would call a violation and guardline does not flag. Eac
 
 - **Positions are approximate for commands.** A command found inside `bash -c '...'` or a substitution is reported at the position of the enclosing command, and line continuations shift later offsets.
 - **The lexer is not a shell.** Unusual syntax (some zsh and fish forms, aliases, options that change parsing) can be read differently from the way your shell reads it. On unbalanced quotes a lenient split is used, which can both miss and over-report.
+- **Staged symbolic links are not handed to the pre-commit hook.** pre-commit tags a link `symlink` and not `file`, so the file hook skips it. `guardline diff --staged` reads the link's target text as an added line and covers it.
 - **Nothing inside `.git` is scanned.** It is the one directory a scan never enters. Use `guardline diff` for history you are about to publish.
 - **The hook cannot stop its own removal**, and does not cover a shell command that writes a configuration file; it ignores discovered configuration instead.
 

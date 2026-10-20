@@ -234,7 +234,7 @@ def test_the_interactive_flow_asks_every_question_and_confirms(run: Run, project
     assert "attribution (9 rules)" in out
     text = (project / "guardline.toml").read_text(encoding="utf-8")
     assert tomllib.loads(text) == {"mode": "report", "families": ["attribution", "token"]}
-    assert "args: [--mode, report]" in out
+    assert "args: [--mode, report, --]" in out
 
 
 def test_empty_answers_take_the_defaults(run: Run, project: Path) -> None:
@@ -357,7 +357,7 @@ def test_executable_lookup_falls_back_to_path_then_to_the_bare_name(
 def test_the_pre_commit_snippet_sets_report_mode_through_args() -> None:
     assert "args:" not in pre_commit_snippet("block")
     snippet = pre_commit_snippet("report")
-    assert snippet.count("args: [--mode, report]") == 2
+    assert snippet.count("args: [--mode, report, --]") == 2
     assert "id: guardline-commit-msg" in snippet
 
 
@@ -371,7 +371,7 @@ def test_a_later_mode_flag_beats_the_hook_entry(run: Run, project: Path) -> None
 
 def test_the_pre_commit_note_explains_report_mode(run: Run) -> None:
     _, out, _ = run("init", "--yes", "--mode", "report", "--hook", "pre-commit")
-    assert "args: [--mode, report]" in out
+    assert "args: [--mode, report, --]" in out
     assert "last --mode" in out
     _, out, _ = run("init", "--yes", "--force", "--hook", "pre-commit")
     assert "last --mode" not in out

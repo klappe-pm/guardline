@@ -1,13 +1,15 @@
 - id: guardline
   name: guardline
   description: Scan staged files for agent attribution and token-shaped values. Blocks the commit on a finding.
-  entry: guardline scan --mode block
+  entry: guardline scan --mode block --no-stdin
+  args: ["--"]
   language: python
-  types: [text]
+  types: [file]
 - id: guardline-commit-msg
   name: guardline commit message
   description: Scan the commit message for agent attribution and token-shaped values. Blocks the commit on a finding.
-  entry: guardline scan --mode block --commit-msg
+  entry: guardline scan --mode block --no-stdin --commit-msg
+  args: ["--"]
   language: python
   stages: [commit-msg]
   always_run: true

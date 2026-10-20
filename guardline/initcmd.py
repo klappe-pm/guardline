@@ -219,7 +219,7 @@ def claude_code_snippet(command: str) -> str:
 
 def pre_commit_snippet(mode: str) -> str:
     """Return the ``.pre-commit-config.yaml`` snippet for a mode."""
-    args = "" if mode == "block" else "\n        args: [--mode, report]"
+    args = "" if mode == "block" else "\n        args: [--mode, report, --]"
     return (
         "repos:\n"
         "  - repo: https://github.com/klappe-pm/guardline\n"
@@ -384,7 +384,9 @@ def _print_snippets(out: IO[str], hooks: tuple[str, ...], config: Path, mode: st
         if mode == "report":
             out.write(
                 "\nThe hook entries already pass --mode block, and the last --mode on the "
-                "command line wins, so report mode is set here with args.\n"
+                "command line wins, so report mode is set here with args. Keep the -- at the "
+                "end: args replaces the hook's own, and the -- is what makes a staged file "
+                "named like an option a file name.\n"
             )
         out.write(
             "\nThe scan hooks find your configuration by searching up from the repository, so "
