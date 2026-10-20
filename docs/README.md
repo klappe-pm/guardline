@@ -1,23 +1,26 @@
-# docs
+# Documentation
 
-Documentation for people who use guardline: you run the command, wire it into an agent runtime or a repository, and tune its rules. It is arranged by the four [Diátaxis](https://diataxis.fr/) quadrants, so the folder a page sits in tells you what kind of page it is. If you change guardline itself, the same shape exists under [developer-docs](../developer-docs/README.md).
+Guardline is one detector library for coding agent guardrails: the same rules run from an agent runtime hook, a pre-commit hook and a command line scan. These pages cover installing and using it, looking things up, and changing the code. They follow the four [Diátaxis](https://diataxis.fr/) quadrants, so the folder a page sits in tells you what kind of page it is.
 
-## tutorials
+## Tutorials
 
-Lessons that take you through a task from start to finish, for someone who has not done it before. Start with [getting started](tutorials/getting-started.md), which goes from an empty virtual environment to a scan, a hook decision, a configuration file written by `guardline init` and a disabled rule. Index: [tutorials](tutorials/README.md).
+Lessons that take you through a task from start to finish. [Getting Started](tutorials/getting-started.md) goes from an empty virtual environment to a scan, a hook decision, a configuration file written by `guardline init` and a disabled rule. [First Contribution](tutorials/first-contribution.md) goes from a fresh clone to a passing test suite and a rule ready for review. Index: [Tutorials](tutorials/README.md).
 
-## how-to-guides
+## How-To Guides
 
-Recipes for a specific goal, for someone who already knows the basics. [install](how-to-guides/install.md) covers every install method, [use with claude code](how-to-guides/use-with-claude-code.md) holds the hook settings snippet, [use with pre-commit](how-to-guides/use-with-pre-commit.md) wires guardline into a repository, [scan in ci](how-to-guides/scan-in-ci.md) scans a branch or a diff, [choose block or report mode](how-to-guides/choose-block-or-report-mode.md) sets what a finding does, [disable a rule](how-to-guides/disable-a-rule.md) turns rules off, [add a custom rule](how-to-guides/add-a-custom-rule.md) adds your own, including personal style rules, [quote third party attribution](how-to-guides/quote-third-party-attribution.md) covers the fenced code switch, and [troubleshooting](how-to-guides/troubleshooting.md) matches a failure to its fix. Index: [how-to guides](how-to-guides/README.md).
+Recipes for a specific goal, for someone who already knows the basics.
 
-## reference
+- Set up: [Install](how-to-guides/install.md), [Use with Claude Code](how-to-guides/use-with-claude-code.md), [Use with Pre-Commit](how-to-guides/use-with-pre-commit.md), [Choose Block or Report Mode](how-to-guides/choose-block-or-report-mode.md).
+- Operate: [Scan in CI](how-to-guides/scan-in-ci.md), [Troubleshooting](how-to-guides/troubleshooting.md).
+- Customize: [Disable a Rule](how-to-guides/disable-a-rule.md), [Add a Custom Rule](how-to-guides/add-a-custom-rule.md), [Quote Third-Party Attribution](how-to-guides/quote-third-party-attribution.md).
+- Contribute: [Add a Rule](how-to-guides/add-a-rule.md), [Run the Tests](how-to-guides/run-the-tests.md), [Cut a Release](how-to-guides/cut-a-release.md).
 
-Lookup pages that describe the machinery as it is, with no instruction attached. [cli](reference/cli.md) lists every subcommand, option and exit status, [configuration](reference/configuration.md) lists every key in `guardline.toml`, [rule file format](reference/rule-file-format.md) lists every field of a rule, [rules](reference/rules.md) lists all 43 built-in rules, [hook protocol](reference/hook-protocol.md) describes the payload and the decision, and [python api](reference/python-api.md) lists every public function and class. Index: [reference](reference/README.md).
+Index: [How-To Guides](how-to-guides/README.md).
 
-## explanation
+## Reference
 
-Discussion that gives background and reasons, for a reader who wants to understand rather than act. [design](explanation/design.md) explains why the rules are data and why there are three entry points, and [security model](explanation/security-model.md) states the threat model and lists the bypasses that are known and open. Index: [explanation](explanation/README.md).
+Lookup pages that describe the machinery as it is. [CLI](reference/cli.md) lists every subcommand, option and exit status, [Configuration](reference/configuration.md) lists every key in `guardline.toml`, [Rule File Format](reference/rule-file-format.md) lists every field of a rule, [Rules](reference/rules.md) lists all 43 built-in rules, [Hook Protocol](reference/hook-protocol.md) describes the payload and the decision, [Python API](reference/python-api.md) lists every public function and class, [Package Data](reference/package-data.md) describes the shipped rule files and how they are read, and [Source Layout](reference/source-layout.md) maps every module and test file. Index: [Reference](reference/README.md).
 
-## documentation-guide
+## Explanation
 
-How this documentation is organised and how to add to it. [documentation guide](documentation-guide/README.md) says which folder a new page belongs in.
+Background and reasons, for a reader who wants to understand rather than act. [Design](explanation/design.md) explains why the rules are data and why there are three entry points, [Security Model](explanation/security-model.md) states the threat model and lists the bypasses that are known and open, and [Architecture](explanation/architecture.md) explains how a scan flows through the modules. Index: [Explanation](explanation/README.md).

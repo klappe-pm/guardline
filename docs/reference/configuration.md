@@ -1,12 +1,12 @@
-# configuration
+# Configuration
 
 This page lists every configuration key and says how the file is found. Configuration is optional; with none, every built-in rule runs and the mode is `block`. `guardline init` writes a file with the `mode` and `families` keys, and `guardline config show` prints what is active; see the [cli reference](cli.md).
 
-## where-it-lives
+## Where It Lives
 
-Either a `guardline.toml` with the keys at the top level, or a `[tool.guardline]` table in `pyproject.toml`. guardline starts in the current directory (for `diff`, the `--repo` directory) and walks up. In each directory `guardline.toml` is tried before `pyproject.toml`, and a `pyproject.toml` without a `[tool.guardline]` table is skipped. The walk stops after the first directory that holds a `.git` entry, or at the filesystem root. `--config PATH` names one file and skips the search, and `--no-config` ignores all files. `guardline hook` never searches: it reads a file only when `--config PATH` names one.
+Either a `guardline.toml` with the keys at the top level, or a `[tool.guardline]` table in `pyproject.toml`. Guardline starts in the current directory (for `diff`, the `--repo` directory) and walks up. In each directory `guardline.toml` is tried before `pyproject.toml`, and a `pyproject.toml` without a `[tool.guardline]` table is skipped. The walk stops after the first directory that holds a `.git` entry, or at the filesystem root. `--config PATH` names one file and skips the search, and `--no-config` ignores all files. `guardline hook` never searches: it reads a file only when `--config PATH` names one.
 
-## keys
+## Keys
 
 An unknown key is an error, so a misspelled key cannot silently do nothing.
 
@@ -26,11 +26,11 @@ A configuration that leaves no active rule is an error (`the configuration leave
 
 Input over a limit is not scanned. It yields one `guardline-input-too-large` finding, so oversize input is reported and never passes silently.
 
-## not-a-key
+## Not a Key
 
 There is no key for `--allow-fenced-attribution`. The exception for quoting attribution inside a fenced code block is a per run switch on purpose. See [quote third party attribution](../how-to-guides/quote-third-party-attribution.md).
 
-## example-guardline-toml
+## Example `guardline.toml`
 
 ```toml
 mode = "block"
@@ -40,7 +40,7 @@ exclude = ["*.lock", "tests/fixtures/*"]
 max_text_chars = 2097152
 ```
 
-## example-pyproject-toml
+## Example `pyproject.toml`
 
 ```toml
 [tool.guardline]

@@ -1,8 +1,8 @@
-# source-layout
+# Source Layout
 
 This page maps the repository: each module of the `guardline` package and each test file, with the one job it has. Use it to find where a change belongs. For how the modules work together see [architecture](../explanation/architecture.md).
 
-## package
+## Package
 
 | path | job |
 | --- | --- |
@@ -22,16 +22,16 @@ This page maps the repository: each module of the `guardline` package and each t
 | `guardline/py.typed` | marks the package as typed |
 | `guardline/data/rules/` | the built-in rule files, see [package data](package-data.md) |
 
-## repository-files
+## Repository Files
 
 | path | job |
 | --- | --- |
 | `.pre-commit-hooks.yaml` | the hook ids other repositories consume |
 | `pyproject.toml` | build, dependencies, console script, pytest, ruff and mypy configuration |
-| `docs/`, `developer-docs/` | the two documentation trees |
+| `docs/` | the documentation, in one tree arranged by Diátaxis quadrant |
 | `tests/` | the test suite |
 
-## tests
+## Tests
 
 | path | job |
 | --- | --- |

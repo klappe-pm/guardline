@@ -1,8 +1,8 @@
-# hook-protocol
+# Hook Protocol
 
 This page describes what `guardline hook` reads, which parts of a tool call it judges, and exactly what it writes. The payload format is the Claude Code `PreToolUse` JSON object.
 
-## input
+## Input
 
 One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged.
 
@@ -12,7 +12,7 @@ One JSON object on standard input. Empty input is not allowed: in block mode it 
 | `tool_name` | only `TodoWrite` is special: it is local bookkeeping and is never judged |
 | `tool_input` | a mapping; everything judged comes from here. Anything else, or no mapping, has nothing to judge |
 
-## what-is-judged
+## What Is Judged
 
 From `tool_input`:
 
@@ -22,7 +22,7 @@ From `tool_input`:
 
 Findings are labelled with their field, for example `tool_input.content` or `tool_input.edits[1].new_string`.
 
-## output
+## Output
 
 In block mode with a finding, the default `--deny-with json` writes this to standard output and exits 0:
 
@@ -40,7 +40,7 @@ The reason is also written to standard error. With `--deny-with exit-code`, stan
 
 With no finding the hook writes nothing and exits 0. In report mode it writes the findings to standard error, one per line, and exits 0.
 
-## exit-codes
+## Exit Codes
 
 | code | meaning |
 | --- | --- |
@@ -49,7 +49,7 @@ With no finding the hook writes nothing and exits 0. In report mode it writes th
 
 The hook never exits 1. Claude Code treats exit 1 as a non-blocking error and runs the tool anyway.
 
-## failure-handling
+## Failure Handling
 
 | situation | block mode | report mode |
 | --- | --- | --- |

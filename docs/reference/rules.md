@@ -1,10 +1,10 @@
-# rules
+# Rules
 
 This page lists all 43 built-in rules, grouped by family: 9 attribution rules, 14 environment dump rules and 20 token-shaped value rules. Each row gives the rule id, which you use to disable it, the scope that says how it is applied, and what it catches. The authoritative definition of a rule is its entry in the rule files under `guardline/data/rules/`, and each entry carries the two examples that the tests run. Fields are explained in the [rule file format](rule-file-format.md).
 
 A finding carries the rule id and a position and never the matched text. All patterns are heuristics; the [security model](../explanation/security-model.md) lists what they miss.
 
-## attribution
+## Attribution
 
 Attribution rules judge authored text: commit messages, pull request bodies, files and message fields. The agent and vendor names the trailer and footer rules recognise are Claude, Anthropic, Codex, OpenAI, ChatGPT, GPT followed by a digit, Copilot, Cursor, Devin, Gemini, Aider, Windsurf, Grok, Kiro, Cline, Google Jules, "Jules agent", "Jules bot", "Jules AI", "AI assistant", "AI agent" and LLM, matched as whole words. A bare first name such as Jules is not matched, so a person with that name is not a finding. White space is allowed between a trailer keyword and its colon. A trailer names an agent only in its name part, so a person's address at a vendor domain is not a trailer naming the vendor. A footer must open its line or follow the end of a sentence, so a technical mention inside a sentence ("files created by a tool") is not attribution.
 
@@ -22,7 +22,7 @@ Attribution rules judge authored text: commit messages, pull request bodies, fil
 
 The product link rule decides by host. A link to an issue, pull request, release or documentation path in a vendor's repository, and a link to a third party's page that merely names the product, are citations and pass. The `--allow-fenced-attribution` switch affects only this family.
 
-## env-dump
+## Env-Dump
 
 Environment dump rules judge shell commands, one simple command at a time, after the splitter has looked through pipes, `&&`, `;`, newlines, subshells, `$(...)`, backticks, heredocs, here-strings and wrappers: `bash -c` and the other shells, `eval`, `env VAR=val cmd`, `env -S`, `sudo`, `doas`, `command`, `exec`, `nohup`, `time`, `nice`, `timeout`, `stdbuf`, `unbuffer`, `caffeinate`, `script`, `watch`, `xargs`, `find -exec`, `ssh host cmd`, `docker` and `podman` `exec` and `run`, `docker compose exec`, `kubectl exec --` and `op run --`.
 
@@ -45,7 +45,7 @@ Environment dump rules judge shell commands, one simple command at a time, after
 
 On macOS `ps -e` is the same as `-A` (every process) and does not print environments, so `ps -e` and `ps -eo pid,command` pass, while `ps -E`, `ps e` and `ps eww` are findings. A command whose quotes are unbalanced is split leniently so that a broken quote cannot hide a command.
 
-## token
+## Token
 
 Token-shaped rules judge text, and also the whole text of a shell command, so a secret passed as an argument is found. A finding names the rule, which is the kind of value, and the position.
 
@@ -74,7 +74,7 @@ Token-shaped rules judge text, and also the whole text of a shell command, so a 
 
 Prefix rules start at a token boundary and cap the length of the run they read, which keeps scan time linear. The generic assignment rule ignores a value that is a dotted chain of identifiers (`settings.env.api_key`) and a `secret://` reference, and does not fire when the value is followed by an opening parenthesis, which is a function call.
 
-## engine-findings
+## Engine Findings
 
 These findings come from the engine, not from a rule file, and cannot be disabled. They carry the family `engine`.
 

@@ -1,10 +1,10 @@
-# changelog
+# Changelog
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## unreleased
+## Unreleased
 
-### added
+### Added
 
 - Package scaffold: `pyproject.toml` with the hatchling build backend and the `guardline` console script.
 - A rule engine where every rule is data: versioned TOML rule files shipped as package data and read through `importlib.resources`, each rule carrying an id, a family, a description, a pattern, a fire example and a look-alike example that must not fire.
@@ -19,10 +19,10 @@ All notable changes to this project are documented in this file. The format foll
 - Findings that carry the rule id and a position and never the matched value, with tests proving it across the API, the hook and the command line.
 - Input size limits, a token budget for the shell splitter, and linear patterns, with a rule loader check for nested quantifiers and tests that feed large adversarial input. Input over a limit and a command too complex to split are reported as findings, never skipped.
 - A hook and a command line that do not fail open: invalid bytes on standard input, a crash and a bad configuration all block in block mode, and an unexpected error in a scan exits 2 without printing the input.
-- Repository documents: `README.md`, `contributing.md`, `security.md` and `support.md`.
-- Documentation in two trees arranged by Diátaxis quadrant: `docs/` for people who use guardline and `developer-docs/` for people who change it, each with a `README.md` per folder listing its pages.
+- Repository documents: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md` and `CODE_OF_CONDUCT.md`, with issue and pull request templates under `.github/`.
+- Documentation in one tree under `docs/`, arranged by Diátaxis quadrant, with a `README.md` per folder listing its pages. The pages for contributors sit beside the pages for users: `docs/tutorials/first-contribution.md`, `docs/how-to-guides/run-the-tests.md`, `docs/how-to-guides/cut-a-release.md`, `docs/reference/source-layout.md` and `docs/explanation/architecture.md`.
 - A shell lexer that decodes quoting the way a shell does (`$'...'` with hex, octal and unicode escapes, `$"..."`, backslash-newline, comments), a table of wrappers with their long options, and function bodies and `source /dev/stdin` as commands to inspect.
-- `guardline hook` reads configuration only from an explicit `--config`, refuses empty input in block mode, denies edits to guardline configuration files unless `--allow-config-edit`, judges every string of a tool input at any depth, and never puts rule file keys in a deny reason.
+- `guardline hook` reads configuration only from an explicit `--config`, refuses empty input in block mode, denies edits to Guardline configuration files unless `--allow-config-edit`, judges every string of a tool input at any depth, and never puts rule file keys in a deny reason.
 - Attribution found in `--message=` and `--body=` values, in decoded `$'...'` text, and in text fed to a publishing command by an echo, a printf or a here-string.
 - Rule loader checks for adjacent overlapping repeats, more than 3 unbounded repeats, alternation inside a wide repeat and backreferences; `rule_files` confined to the configuration directory.
 - Token rules for Hugging Face, Slack app level and SendGrid keys, ABIA ids, PGP private key blocks, quoted assignment names and longer JWTs; token rules also run over the decoded shell words.
@@ -35,7 +35,7 @@ All notable changes to this project are documented in this file. The format foll
 - A documented list of open gaps in `docs/explanation/security-model.md`, each pinned by a test.
 - `guardline scan --no-stdin`, which treats `-` as a file name and never reads standard input.
 
-### security
+### Security
 
 - A staged file named like an option (`--mode=report`, `--help`, `--family=env-dump`) or named `-` can no longer change a pre-commit scan or turn it into a read of standard input: the hook entries end their options with `--` and pass `--no-stdin`, the `guardline init` report mode snippet is `args: [--mode, report, --]`, and every parser refuses abbreviated option names.
 - `guardline init` no longer writes through a symbolic link: it refuses a link as its target, creates a new file exclusively and without following links, and replaces an existing file through a temporary file after checking that it has not changed since the diff was shown.

@@ -1,8 +1,8 @@
-# add-a-custom-rule
+# Add a Custom Rule
 
-This guide adds your own rule file to guardline, checks it, and turns it on. Rules are data in the same format as the built-in ones, so anything guardline ships can be copied and adapted. This is also where a team's own style rules go: guardline ships detectors that are general guards and leaves personal or house style (prose punctuation, heading case, hard wrapping, project and client naming) to rule files like the one below.
+This guide adds your own rule file to Guardline, checks it, and turns it on. Rules are data in the same format as the built-in ones, so anything Guardline ships can be copied and adapted. This is also where a team's own style rules go: Guardline ships detectors that are general guards and leaves personal or house style (prose punctuation, heading case, hard wrapping, project and client naming) to rule files like the one below.
 
-## write-the-rule-file
+## Write the Rule File
 
 Create `rules/team.toml`. Every rule needs an id, a family, a description, a pattern and two examples, one that must fire and one look-alike that must not. This synthetic file holds two style rules for Markdown:
 
@@ -29,7 +29,7 @@ example_clean = "## getting-started"
 
 The id must be lowercase kebab-case and must not be used by a built-in rule. The family can be any lowercase kebab-case name; a family that is not one of the built-in three simply groups your rules. The default scope is `text`, which matches the pattern against whole text line by line with case ignored. Use `ignore_case = false` for a case sensitive rule. Every field is described in the [rule file format](../reference/rule-file-format.md).
 
-## check-it
+## Check It
 
 ```bash
 guardline rules check /path/to/rules/team.toml
@@ -39,7 +39,7 @@ The command validates the file, then scans each rule's fire example and look-ali
 
 The loader also rejects patterns that can be slow on hostile text (a nested quantifier such as `(a+)+`, an alternation inside a wide repeat, more than 3 unbounded repeats, adjacent overlapping repeats such as `a*a*`, a backreference), a pattern that matches the empty string, a pattern or `unless` expression longer than 4000 characters, and an unknown key. Write patterns that are linear: bound repeats (`{0,200}` instead of `*`) wherever the text could be hostile.
 
-## turn-it-on
+## Turn It On
 
 For one run:
 
@@ -55,11 +55,11 @@ rule_files = ["rules/team.toml"]
 
 Rules from a file run everywhere the built-in rules do: `scan`, `diff`, `hook` and the pre-commit hooks. A custom text rule of any family except attribution also judges the whole text of a shell command in the hook.
 
-## turn-one-off
+## Turn One Off
 
 Disable a custom rule by id exactly as you disable a built-in rule. See [disable a rule](disable-a-rule.md).
 
-## command-rules
+## Command Rules
 
 A rule can also judge shell commands. Set `scope = "args"` with a `programs` list, and the pattern is matched against the command's arguments joined by single spaces. This rule flags `git push` with a force flag:
 

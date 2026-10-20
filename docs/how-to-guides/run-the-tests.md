@@ -1,8 +1,8 @@
-# run-the-tests
+# Run the Tests
 
 This guide lists every check a change must pass and how to run it. The suite reads fixtures only, never the live home directory, a real network or a real git remote, and the default run passes on Linux. Run all of it before opening a pull request.
 
-## the-suite
+## The Suite
 
 ```bash
 /path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests
@@ -14,7 +14,7 @@ The adversarial timing tests in `tests/test_security.py` feed large inputs and t
 /path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests --deselect /path/to/guardline/tests/test_security.py
 ```
 
-## coverage
+## Coverage
 
 ```bash
 /path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests --cov=guardline --cov-report=term-missing
@@ -22,7 +22,7 @@ The adversarial timing tests in `tests/test_security.py` feed large inputs and t
 
 The target is at least 90 percent line coverage of the package. Report the real number in the pull request.
 
-## lint-and-format
+## Lint and Format
 
 ```bash
 /path/to/guardline/.venv/bin/ruff check /path/to/guardline
@@ -32,7 +32,7 @@ The target is at least 90 percent line coverage of the package. Report the real 
 /path/to/guardline/.venv/bin/ruff format --check /path/to/guardline
 ```
 
-## types
+## Types
 
 ```bash
 /path/to/guardline/.venv/bin/mypy --config-file /path/to/guardline/pyproject.toml /path/to/guardline/guardline
@@ -40,7 +40,7 @@ The target is at least 90 percent line coverage of the package. Report the real 
 
 The configuration runs `mypy --strict` on the `guardline` package.
 
-## what-each-test-file-covers
+## What Each Test File Covers
 
 - `test_rules.py`: every rule has both examples, fires on one and not on the other, passes the nested quantifier check; the loader's validation errors; the family counts.
 - `test_engine.py`: attribution, token and command behavior, the fenced code switch, limits, payloads.
@@ -52,8 +52,8 @@ The configuration runs `mypy --strict` on the `guardline` package.
 - `test_diff.py`: scanning added lines, against a throwaway local git repository.
 - `test_consistency.py`: the same input gets the same verdict from the API, the hook, the file scan, the diff scan and the pre-commit entries.
 - `test_security.py`: no value in any output, bounded work on adversarial input, fail closed, and the pinned list of known bypasses.
-- `test_docs.py`: the documentation rules in the [documentation guide](../../docs/documentation-guide/README.md).
+- `test_docs.py`: the documentation rules: Title Case headings, one line per paragraph, no dash punctuation, working links, a listing of every page, and the required repository files.
 
-## values-in-tests
+## Values in Tests
 
 Test values are synthetic and assembled from fragments in `tests/samples.py`, so no test file holds a complete credential or a complete attribution line. A test that checks a value does not leak uses `assert_absent` from `tests/helpers.py`, which fails without printing the value. A plain `assert secret not in output` would print both operands on failure.

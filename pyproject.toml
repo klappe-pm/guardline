@@ -35,6 +35,9 @@ artifacts = ["guardline/data/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "repo_only: reads repository files that the source distribution omits (.github, docs, the community files); skipped when they are missing",
+]
 
 [tool.coverage.run]
 source = ["guardline"]

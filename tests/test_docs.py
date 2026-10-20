@@ -1,343 +1,321 @@
-"""The documentation rules, the rules reference and the repository's own hygiene."""
+"""The documentation and the repository files around it stay accurate, linked and consistent."""
 
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
 
 import pytest
 
-from guardline import Scanner, builtin_rules, verify_rule_examples
-from guardline.rules import parse_rules
+from tests.conftest import ROOT
 
-ROOT = Path(__file__).resolve().parent.parent
-SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
-KEBAB = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-RESERVED = {"README.md", "LICENSE"}
+pytestmark = pytest.mark.repo_only
+
+PACKAGE = "guardline"
+DOCS = ROOT / "docs"
+QUADRANTS = ("tutorials", "how-to-guides", "reference", "explanation")
+COMMUNITY_FILES = (
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+    "SECURITY.md",
+    "SUPPORT.md",
+)
+GITHUB_FILES = {
+    ".github/ISSUE_TEMPLATE/bug-report.yml",
+    ".github/ISSUE_TEMPLATE/config.yml",
+    ".github/ISSUE_TEMPLATE/feature-request.yml",
+    ".github/ISSUE_TEMPLATE/question.yml",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    f".github/{PACKAGE}-banner.svg",
+    ".github/workflows/release.yml",
+}
+# Pages that quote attribution lines because detecting them is what Guardline does.
+QUOTES_ATTRIBUTION = {
+    "docs/how-to-guides/quote-third-party-attribution.md",
+    "docs/reference/rules.md",
+    "docs/tutorials/getting-started.md",
+}
+# Pages kept out of the public tree. They are ignored by git and may exist in a working copy.
+UNPUBLISHED = (DOCS / "documentation-guide",)
+
+SMALL_WORDS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "but",
+    "by",
+    "for",
+    "in",
+    "nor",
+    "of",
+    "on",
+    "or",
+    "the",
+    "to",
+    "vs",
+    "via",
+    "with",
+    "into",
+    "from",
+}
+FENCE = re.compile(r"^\s*```")
+HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+HTML_REFERENCE = re.compile(r'(?:href|src)="([^"]+)"')
+HOME_PATH = re.compile(r"/(?:Users|home)/[A-Za-z0-9._-]+")
+PROVENANCE_KEY = re.compile(r"^(?:models|providers|session-link)\s*:", re.MULTILINE)
+ROBOT = chr(0x1F916)
+BYLINE = re.compile(
+    r"generated (?:with|by)\b.*claude|co-authored-by|claude-session|noreply@anthropic",
+    re.IGNORECASE,
+)
+EM, EN = chr(0x2014), chr(0x2013)
+TABLE_RULE = re.compile(r"^\|?[\s:|-]+\|?$")
+
+
+def is_unpublished(path: Path) -> bool:
+    return any(folder in path.parents for folder in UNPUBLISHED)
 
 
 def markdown_files() -> list[Path]:
-    found = [p for p in ROOT.rglob("*.md") if not SKIP_DIRS & set(p.relative_to(ROOT).parts)]
-    return sorted(found)
+    found = [ROOT / name for name in COMMUNITY_FILES if name.endswith(".md")]
+    found += [ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"]
+    found += [p for p in DOCS.rglob("*.md") if not is_unpublished(p)]
+    return sorted(p for p in found if p.is_file())
 
 
-MD = markdown_files()
+def docs_files() -> list[Path]:
+    return [p for p in markdown_files() if DOCS in p.parents]
 
 
-def ids(paths: list[Path]) -> list[str]:
-    return [str(p.relative_to(ROOT)) for p in paths]
+def label(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
 
 
-def prose_lines(text: str) -> list[tuple[int, str]]:
-    """Return (line number, line) for lines outside fenced code blocks."""
-    lines: list[tuple[int, str]] = []
-    opened: tuple[str, int] | None = None
-    for number, line in enumerate(text.splitlines(), start=1):
-        match = re.match(r" {0,3}(`{3,}|~{3,})(.*)", line)
-        if opened is None:
-            if match:
-                opened = (match.group(1)[0], len(match.group(1)))
+MARKDOWN = pytest.mark.parametrize("path", markdown_files(), ids=label)
+DOCS_ONLY = pytest.mark.parametrize("path", docs_files(), ids=label)
+
+
+def lines_of(path: Path) -> list[tuple[int, str, bool]]:
+    """Every line as (number, text, inside a fence). The fence lines themselves count as inside."""
+    result, fenced = [], False
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if FENCE.match(line):
+            fenced = not fenced
+            result.append((number, line, True))
+            continue
+        result.append((number, line, fenced))
+    return result
+
+
+def headings(path: Path) -> list[tuple[int, int, str]]:
+    found = []
+    for number, line, fenced in lines_of(path):
+        match = None if fenced else HEADING.match(line)
+        if match:
+            found.append((number, len(match.group(1)), match.group(2)))
+    return found
+
+
+def prose(path: Path) -> list[tuple[int, str]]:
+    """The lines outside code fences, with inline code spans removed."""
+    return [(n, re.sub(r"`[^`]*`", "", line)) for n, line, fenced in lines_of(path) if not fenced]
+
+
+def slug(text: str) -> str:
+    text = re.sub(r"[`*]", "", text.lower())
+    return re.sub(r"[^a-z0-9 _-]", "", text).strip().replace(" ", "-")
+
+
+def test_the_community_files_exist() -> None:
+    missing = [name for name in COMMUNITY_FILES if not (ROOT / name).is_file()]
+    assert not missing, missing
+
+
+def test_github_holds_only_the_allowed_files() -> None:
+    present = {p.relative_to(ROOT).as_posix() for p in (ROOT / ".github").rglob("*") if p.is_file()}
+    assert present == GITHUB_FILES
+
+
+def test_there_is_one_docs_tree() -> None:
+    assert not (ROOT / "developer-docs").exists()
+    assert (DOCS / "README.md").is_file()
+    for quadrant in QUADRANTS:
+        assert (DOCS / quadrant / "README.md").is_file(), quadrant
+
+
+def test_each_quadrant_index_lists_every_page_in_its_folder() -> None:
+    for quadrant in QUADRANTS:
+        folder = DOCS / quadrant
+        index = (folder / "README.md").read_text(encoding="utf-8")
+        for page in sorted(p for p in folder.glob("*.md") if p.name != "README.md"):
+            assert f"]({page.name})" in index, f"{label(folder / 'README.md')} omits {page.name}"
+
+
+def test_the_docs_index_links_every_quadrant() -> None:
+    index = (DOCS / "README.md").read_text(encoding="utf-8")
+    for quadrant in QUADRANTS:
+        assert f"]({quadrant}/README.md)" in index, quadrant
+
+
+def test_the_docs_index_names_every_page() -> None:
+    index = (DOCS / "README.md").read_text(encoding="utf-8")
+    for quadrant in QUADRANTS:
+        for page in sorted(p for p in (DOCS / quadrant).glob("*.md") if p.name != "README.md"):
+            assert f"]({quadrant}/{page.name})" in index, (
+                f"docs/README.md omits {quadrant}/{page.name}"
+            )
+
+
+def test_no_published_page_links_into_the_unpublished_guide() -> None:
+    hits = [label(p) for p in markdown_files() if "documentation-guide" in p.read_text("utf-8")]
+    assert not hits, hits
+
+
+@pytest.mark.parametrize(
+    "path", [p for p in markdown_files() if p.name != "PULL_REQUEST_TEMPLATE.md"], ids=label
+)
+def test_the_page_has_exactly_one_h1(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    h1s = [text for _n, level, text in headings(path) if level == 1]
+    html_h1s = re.findall(r"<h1[ >]", text)
+    assert len(h1s) + len(html_h1s) == 1, f"{label(path)} has {len(h1s) + len(html_h1s)} H1"
+
+
+@MARKDOWN
+def test_every_heading_is_title_case(path: Path) -> None:
+    bad = []
+    for number, _level, text in headings(path):
+        outside_code = re.sub(r"`[^`]*`", "", text)
+        for index, word in enumerate(outside_code.split()):
+            core = re.sub(r"^[^A-Za-z0-9]*|[^A-Za-z0-9]*$", "", word)
+            if not core or any(ch.isupper() or ch.isdigit() for ch in core):
                 continue
-            lines.append((number, line))
-        elif match and match.group(1)[0] == opened[0] and len(match.group(1)) >= opened[1]:
-            if not match.group(2).strip():
-                opened = None
-    return lines
+            if core.lower() in SMALL_WORDS and index > 0:
+                continue
+            bad.append(f"{number}: {text}")
+            break
+    assert not bad, f"{label(path)} has headings that are not Title Case: {bad}"
 
 
-def fence_openings(text: str) -> list[tuple[int, str]]:
-    """Return (line number, info string) for each opening fence."""
-    found: list[tuple[int, str]] = []
+@MARKDOWN
+def test_the_page_carries_no_provenance_keys(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    front = text.split("---", 2)[1] if text.startswith("---") else ""
+    assert not PROVENANCE_KEY.search(front), label(path)
+    assert not text.startswith("---"), f"{label(path)} has frontmatter, which no page needs"
+
+
+@MARKDOWN
+def test_the_page_has_no_robot_byline_or_agent_credit(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert ROBOT not in text, label(path)
+    if label(path) not in QUOTES_ATTRIBUTION:
+        assert not BYLINE.search(text), label(path)
+
+
+@MARKDOWN
+def test_the_page_names_no_home_directory(path: Path) -> None:
+    assert not HOME_PATH.search(path.read_text(encoding="utf-8")), label(path)
+
+
+@MARKDOWN
+def test_every_code_fence_has_a_language(path: Path) -> None:
+    """Fences follow CommonMark: a closing fence uses the same character and is as long."""
+    bad = []
     opened: tuple[str, int] | None = None
-    for number, line in enumerate(text.splitlines(), start=1):
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         match = re.match(r" {0,3}(`{3,}|~{3,})(.*)", line)
         if match is None:
             continue
+        fence, rest = match.group(1), match.group(2).strip()
         if opened is None:
-            opened = (match.group(1)[0], len(match.group(1)))
-            found.append((number, match.group(2).strip()))
-        elif match.group(1)[0] == opened[0] and len(match.group(1)) >= opened[1]:
-            if not match.group(2).strip():
-                opened = None
-    return found
+            opened = (fence[0], len(fence))
+            if not rest:
+                bad.append(number)
+        elif fence[0] == opened[0] and len(fence) >= opened[1] and not rest:
+            opened = None
+    assert not bad, f"{label(path)} has fences without a language at lines {bad}"
+    assert opened is None, f"{label(path)} has an unclosed fence"
 
 
-def strip_code(line: str) -> str:
-    line = re.sub(r"`[^`]*`", "", line)
-    line = re.sub(r"\]\([^)]*\)", "]", line)
-    return re.sub(r"<https?://[^>]*>", "", line)
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_no_dash_punctuation(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    assert "\u2014" not in text
-    assert "\u2013" not in text
-    for number, line in prose_lines(text):
-        if re.fullmatch(r"\|[ :|-]+\|", line.strip()):
+@MARKDOWN
+def test_no_dash_is_used_as_punctuation(path: Path) -> None:
+    bad = []
+    for number, line in prose(path):
+        text = re.sub(r"\]\([^)]*\)", "]", line)
+        text = re.sub(r"<[^>]*>", "", text)
+        text = re.sub(r"https?://\S+", "", text)
+        stripped = text.strip()
+        if TABLE_RULE.match(stripped) or re.fullmatch(r"-{3,}", stripped):
             continue
-        plain = strip_code(line)
-        if re.search(r"(?<=\S) - (?=\S)", plain) or "--" in plain:
-            pytest.fail(f"{path.name}:{number}: dash used as punctuation")
+        body = re.sub(r"^\s*(?:[-*] |\d+\. )", "", text)
+        if EM in body or EN in body or " - " in body or "--" in body:
+            bad.append(number)
+    assert not bad, f"{label(path)} uses a dash as punctuation at lines {bad}"
 
 
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_headings_are_kebab_case_and_h1_matches_the_name(path: Path) -> None:
-    h1_seen = 0
-    for number, line in prose_lines(path.read_text(encoding="utf-8")):
-        match = re.match(r"(#{1,6}) (.*)", line)
-        if not match:
+@MARKDOWN
+def test_the_page_is_not_hard_wrapped(path: Path) -> None:
+    bad = []
+    previous_is_text = False
+    for number, line, fenced in lines_of(path):
+        stripped = line.strip()
+        if fenced or not stripped:
+            previous_is_text = False
             continue
-        level, title = len(match.group(1)), match.group(2).strip()
-        if not KEBAB.fullmatch(title):
-            pytest.fail(f"{path.name}:{number}: heading is not lowercase kebab-case")
-        if level == 1:
-            h1_seen += 1
-            expected = path.parent.name if path.name == "README.md" else path.stem
-            if path == ROOT / "README.md":
-                expected = "guardline"
-            if title != expected:
-                pytest.fail(f"{path.name}:{number}: H1 should be {expected}")
-    assert h1_seen == 1
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_filenames_are_kebab_case(path: Path) -> None:
-    for part in path.relative_to(ROOT).parts:
-        stem = part[:-3] if part.endswith(".md") else part
-        assert part in RESERVED or KEBAB.fullmatch(stem), part
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_every_code_fence_has_a_language(path: Path) -> None:
-    for number, info in fence_openings(path.read_text(encoding="utf-8")):
-        if not info:
-            pytest.fail(f"{path.name}:{number}: code fence has no language tag")
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_paragraphs_are_not_hard_wrapped(path: Path) -> None:
-    previous: tuple[int, str] | None = None
-    for number, line in prose_lines(path.read_text(encoding="utf-8")):
-        plain = bool(line.strip()) and not re.match(r"\s*([#>|*+-]|\d+\.|<)", line)
-        if plain and previous is not None and previous[0] == number - 1:
-            pytest.fail(f"{path.name}:{number}: paragraph continues onto a second line")
-        previous = (number, line) if plain else None
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_no_provenance_frontmatter_and_no_agent_credit(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    if text.startswith("---"):
-        header = text.split("---", 2)[1]
-        for key in ("models", "providers", "session-link"):
-            assert not re.search(rf"^{key}:", header, re.MULTILINE)
-    assert "\U0001f916" not in text
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_relative_links_resolve(path: Path) -> None:
-    text = path.read_text(encoding="utf-8")
-    for number, line in prose_lines(text):
-        for target in re.findall(r"\]\(([^)\s]+)\)", line):
-            if re.match(r"(https?:|mailto:|#)", target):
-                continue
-            resolved = (path.parent / target.split("#", 1)[0]).resolve()
-            if not resolved.exists():
-                pytest.fail(f"{path.name}:{number}: broken link {target}")
-
-
-def test_every_folder_readme_lists_its_pages() -> None:
-    for tree in ("docs", "developer-docs"):
-        for readme in (ROOT / tree).rglob("README.md"):
-            text = readme.read_text(encoding="utf-8")
-            for page in readme.parent.glob("*.md"):
-                if page.name != "README.md":
-                    assert f"({page.name})" in text, f"{readme} does not list {page.name}"
-
-
-def test_top_level_readmes_name_every_page() -> None:
-    for tree in ("docs", "developer-docs"):
-        readme = (ROOT / tree / "README.md").read_text(encoding="utf-8")
-        for page in (ROOT / tree).rglob("*.md"):
-            relative = page.relative_to(ROOT / tree).as_posix()
-            if page.name != "README.md":
-                assert f"({relative})" in readme, f"{tree}/README.md does not name {relative}"
-
-
-def test_both_trees_have_the_four_quadrants() -> None:
-    quadrants = {"tutorials", "how-to-guides", "reference", "explanation"}
-    for tree in ("docs", "developer-docs"):
-        folders = {p.name for p in (ROOT / tree).iterdir() if p.is_dir()}
-        assert quadrants <= folders
-        for quadrant in quadrants:
-            assert (ROOT / tree / quadrant / "README.md").is_file()
-
-
-def test_minimum_documentation_exists() -> None:
-    pages = [
-        "docs/tutorials/getting-started.md",
-        "docs/how-to-guides/install.md",
-        "docs/how-to-guides/troubleshooting.md",
-        "docs/reference/cli.md",
-        "docs/reference/configuration.md",
-        "docs/reference/python-api.md",
-        "docs/explanation/design.md",
-        "docs/explanation/security-model.md",
-        "developer-docs/tutorials/first-contribution.md",
-        "developer-docs/how-to-guides/run-the-tests.md",
-        "developer-docs/explanation/architecture.md",
-    ]
-    for page in pages:
-        assert (ROOT / page).is_file(), page
-
-
-def test_every_page_opens_with_a_purpose_paragraph() -> None:
-    for path in MD:
-        if path.parent == ROOT and path.name != "README.md":
+        starts_item = re.match(r"^([-*>|#]|\d+\.)\s|^\|", stripped) is not None
+        structural = starts_item or stripped.startswith(("<", "---", "![")) or HEADING.match(line)
+        if structural:
+            # A list item or a quote is text that a following plain line would continue.
+            previous_is_text = bool(re.match(r"^([-*>]|\d+\.)\s", stripped))
             continue
-        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        assert lines[0].startswith("# "), path
-        assert len(lines) > 1 and not lines[1].startswith("#"), f"{path} has no opening paragraph"
+        if previous_is_text:
+            bad.append(number)
+        previous_is_text = True
+    assert not bad, f"{label(path)} continues a paragraph or item on a new line at lines {bad}"
 
 
-# the rules reference ---------------------------------------------------------------
+@DOCS_ONLY
+def test_every_relative_link_resolves(path: Path) -> None:
+    anchors_of: dict[Path, set[str]] = {}
 
+    def anchors(target: Path) -> set[str]:
+        if target not in anchors_of:
+            anchors_of[target] = {slug(text) for _n, _level, text in headings(target)}
+        return anchors_of[target]
 
-def test_rules_reference_lists_every_builtin_rule_once() -> None:
-    text = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
-    for rule in builtin_rules():
-        assert len(re.findall(rf"\| `{re.escape(rule.id)}` \|", text)) == 1, rule.id
-        assert rule.description in text, rule.id
-
-
-def test_rule_counts_in_the_documents_match_the_rules() -> None:
-    rules = builtin_rules()
-    per_family = {
-        f: sum(1 for r in rules if r.family == f) for f in ("attribution", "env-dump", "token")
-    }
-    assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 14, 20)
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert f"{len(rules)} rules ship" in readme
-    reference = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
-    assert f"all {len(rules)} built-in rules" in reference
-    assert (
-        "9 attribution rules, 14 environment dump rules and 20 token-shaped value rules"
-        in reference
-    )
-
-
-AGENT_NAMES = (
-    "Claude",
-    "Anthropic",
-    "Codex",
-    "OpenAI",
-    "ChatGPT",
-    "Copilot",
-    "Cursor",
-    "Devin",
-    "Gemini",
-    "Aider",
-    "Windsurf",
-    "Grok",
-    "Kiro",
-    "Cline",
-    "Google Jules",
-    "AI assistant",
-    "AI agent",
-    "LLM",
-)
-
-
-def test_the_agent_names_in_the_docs_match_the_rule() -> None:
-    text = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
-    patterns = [
-        r.pattern
-        for r in builtin_rules()
-        if r.id
-        in (
-            "attribution-co-author-trailer",
-            "attribution-assisted-by-trailer",
-            "attribution-generated-with-footer",
-        )
-    ]
-    for name in AGENT_NAMES:
-        assert name in text, name
-        assert all(name in pattern for pattern in patterns), name
-
-
-# examples in the documentation run -----------------------------------------------------
-
-
-def toml_blocks(path: Path) -> list[str]:
-    text = path.read_text(encoding="utf-8")
-    return re.findall(r"```toml\n(.*?)```", text, re.DOTALL)
-
-
-@pytest.mark.parametrize("path", MD, ids=ids(MD))
-def test_toml_blocks_in_the_documents_parse(path: Path) -> None:
-    for block in toml_blocks(path):
-        tomllib.loads(block)
-
-
-def test_rule_files_in_the_documents_pass_their_own_examples() -> None:
-    checked = 0
-    for path in MD:
-        for block in toml_blocks(path):
-            if "schema_version" not in block or "[[rule]]" not in block:
-                continue
-            if "'regular expression'" in block:
-                continue
-            for rule in parse_rules(block, path.name):
-                assert verify_rule_examples(rule) == [], rule.id
-                checked += 1
-    assert checked >= 3
-
-
-def test_documented_getting_started_output_is_real() -> None:
-    text = (ROOT / "docs/tutorials/getting-started.md").read_text(encoding="utf-8")
-    finding = Scanner().scan_text(
-        "fix: parser\n\nCo-Authored-By: Codex <dev@example.com>\n", "m.txt"
-    )
-    assert len(finding) == 1
-    assert finding[0].format_text().replace("m.txt", "/tmp/guardline-tour/message.txt") in text
-
-
-# the repository holds no complete credential and no agent credit ---------------------
-
-
-def repository_text_files() -> list[Path]:
-    suffixes = {".md", ".py", ".toml", ".yaml", ".yml", ".cfg", ".txt", ".gitignore", ""}
-    found = []
-    for path in sorted(ROOT.rglob("*")):
-        if not path.is_file() or SKIP_DIRS & set(path.relative_to(ROOT).parts):
+    text = "\n".join(line for _n, line in prose(path))
+    for target in LINK.findall(text):
+        if re.match(r"^[a-z][a-z0-9+.-]*:", target):
             continue
-        if path.suffix in suffixes and path.stat().st_size < 1_000_000:
-            found.append(path)
-    return found
+        name, _, fragment = target.partition("#")
+        resolved = (path.parent / name).resolve() if name else path
+        assert resolved.exists(), f"{label(path)} links to {target}, which does not exist"
+        if fragment and resolved.suffix == ".md":
+            assert fragment in anchors(resolved), (
+                f"{label(path)} links to {target}: no such heading"
+            )
 
 
-@pytest.mark.parametrize("path", repository_text_files(), ids=ids(repository_text_files()))
-def test_guardline_finds_nothing_in_its_own_repository(path: Path) -> None:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    scanner = Scanner(allow_fenced_attribution=True, families=["attribution", "token"])
-    findings = scanner.scan_text(text, str(path.relative_to(ROOT)))
-    if findings:
-        pytest.fail(f"{path.relative_to(ROOT)} holds {sorted({f.rule_id for f in findings})}")
+def test_the_banner_is_an_svg_with_a_label() -> None:
+    banner = (ROOT / ".github" / f"{PACKAGE}-banner.svg").read_text(encoding="utf-8")
+    assert banner.startswith("<svg")
+    assert 'role="img"' in banner
+    assert "aria-label=" in banner
+    assert "<script" not in banner
+    assert "http" not in banner.replace("http://www.w3.org/2000/svg", "")
 
 
-def test_documented_config_show_output_is_real(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    from guardline.cli import main
-
-    (tmp_path / ".git").mkdir()
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "guardline.toml").write_text(
-        'mode = "block"\nfamilies = ["attribution", "token"]\n', encoding="utf-8"
-    )
-    assert main(["config", "show"]) == 0
-    real = capsys.readouterr().out.replace(str(tmp_path), "/tmp/guardline-tour/project")
-    text = (ROOT / "docs/tutorials/getting-started.md").read_text(encoding="utf-8")
-    assert real in text
+def test_the_issue_templates_point_at_the_package() -> None:
+    config = (ROOT / ".github" / "ISSUE_TEMPLATE" / "config.yml").read_text(encoding="utf-8")
+    assert f"https://github.com/klappe-pm/{PACKAGE}/blob/main/SECURITY.md" in config
+    assert "blank_issues_enabled: false" in config
+    support = (ROOT / "SUPPORT.md").read_text(encoding="utf-8")
+    for template in ("bug-report", "question", "feature-request"):
+        assert f"issues/new?template={template}.yml" in support

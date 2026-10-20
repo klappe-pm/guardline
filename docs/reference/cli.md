@@ -1,8 +1,8 @@
-# cli
+# CLI
 
 This page lists every subcommand, option and exit status of the `guardline` command. For a walk through the common ones see [getting started](../tutorials/getting-started.md).
 
-## synopsis
+## Synopsis
 
 ```text
 guardline [--version] <command> [options]
@@ -10,7 +10,7 @@ guardline [--version] <command> [options]
 
 Commands: `hook`, `scan`, `diff`, `rules`, `init` and `config`.
 
-## exit-statuses
+## Exit Statuses
 
 | status | meaning |
 | --- | --- |
@@ -20,7 +20,7 @@ Commands: `hook`, `scan`, `diff`, `rules`, `init` and `config`.
 
 The `hook` command never blocks with exit 1, because a runtime treats exit 1 as a non-blocking error. See [hook protocol](hook-protocol.md).
 
-## common-options
+## Common Options
 
 These options are accepted by `hook`, `scan`, `diff`, `rules` and `config`. They go before the action of `rules` and `config`, as in `guardline config --no-config show`.
 
@@ -36,15 +36,15 @@ These options are accepted by `hook`, `scan`, `diff`, `rules` and `config`. They
 
 Option names must be written in full: every parser is created with abbreviations off, so `--mod` is a usage error rather than `--mode`. A file name that looks like an option cannot change a scan when it follows `--`, which the pre-commit hooks pass.
 
-## guardline-hook
+## Guardline Hook
 
 ```text
 guardline hook [common options] [--deny-with json|exit-code]
 ```
 
-Reads one tool call payload on standard input and judges it. The hook never discovers configuration: it reads a configuration file only when `--config PATH` names one, so a file the agent writes into the project cannot change it. `--deny-with json` (the default) writes a JSON deny decision to standard output and exits 0. `--deny-with exit-code` writes the reason to standard error and exits 2. `--allow-config-edit` lets the agent write guardline configuration files; without it a Write, Edit or MultiEdit to `guardline.toml`, to a pyproject.toml with a `[tool.guardline]` table, or to the hook's own `--config` file, `--rules` file or a rule file named by that config's `rule_files` is denied. Empty input, a payload that is not JSON, invalid bytes, a configuration error or a crash blocks the call in block mode and is only printed in report mode.
+Reads one tool call payload on standard input and judges it. The hook never discovers configuration: it reads a configuration file only when `--config PATH` names one, so a file the agent writes into the project cannot change it. `--deny-with json` (the default) writes a JSON deny decision to standard output and exits 0. `--deny-with exit-code` writes the reason to standard error and exits 2. `--allow-config-edit` lets the agent write Guardline configuration files; without it a Write, Edit or MultiEdit to `guardline.toml`, to a pyproject.toml with a `[tool.guardline]` table, or to the hook's own `--config` file, `--rules` file or a rule file named by that config's `rule_files` is denied. Empty input, a payload that is not JSON, invalid bytes, a configuration error or a crash blocks the call in block mode and is only printed in report mode.
 
-## guardline-scan
+## Guardline Scan
 
 ```text
 guardline scan [common options] [--format text|json] [--shell] [--no-stdin] [--commit-msg] [--] [PATH ...]
@@ -62,7 +62,7 @@ Scans files, directories and standard input. With no path, or with `-`, it reads
 
 A file longer than `max_text_chars` is not read in full and yields a `guardline-input-too-large` finding. A file that cannot be read is an error (exit 2).
 
-## guardline-diff
+## Guardline Diff
 
 ```text
 guardline diff [common options] [--staged] [--base REV] [--repo DIR] [--format text|json] [PATH ...]
@@ -70,7 +70,7 @@ guardline diff [common options] [--staged] [--base REV] [--repo DIR] [--format t
 
 Runs `git diff --no-ext-diff --no-textconv --unified=0 --text` and scans only the added lines. External diff programs and `textconv` filters are switched off, because a filter can rewrite the text git shows and hide a match that the commit would publish. Git's output is decoded as UTF-8 with invalid bytes replaced, so a Latin-1 byte in a file cannot crash the command. Findings are reported at the line numbers of the new file. `--staged` diffs the index, `--base REV` compares against a revision (a value starting with a dash is refused), `--repo DIR` names the repository (default: the current directory), and the paths limit the files. The command runs `git` with an argument list and never contacts a remote.
 
-## guardline-rules-list
+## Guardline Rules List
 
 ```text
 guardline rules list [common options] [--format text|json]
@@ -78,7 +78,7 @@ guardline rules list [common options] [--format text|json]
 
 Lists the active rules after configuration and disables. Text output is one tab separated line per rule: id, family, scope, description. JSON output is a list of objects with `id`, `family`, `scope`, `description` and `builtin`.
 
-## guardline-rules-check
+## Guardline Rules Check
 
 ```text
 guardline rules check [FILE ...]
@@ -86,7 +86,7 @@ guardline rules check [FILE ...]
 
 With no file, validates the built-in rules and runs their examples. With files, loads them, validates every rule and runs each rule's examples against the built-in rules plus the file. Exits 0 and prints `ok: N rule(s) validated` when every rule fires on its fire example and stays quiet on its look-alike example. Otherwise it prints each problem on standard error and exits 1. A file that fails validation exits 2. Messages never quote an example.
 
-## guardline-init
+## Guardline Init
 
 ```text
 guardline init [--mode block|report] [--families NAMES] [--target guardline.toml|pyproject.toml] [--hook claude-code|pre-commit|none] [--yes] [--force]
@@ -116,7 +116,7 @@ The write itself is careful. A target that is a symbolic link, even a dangling o
 
 The `claude-code` snippet is the `PreToolUse` settings entry for `guardline hook --config ABSOLUTE_PATH`. The hook never searches for configuration, so the snippet names the file you just wrote. The path of the `guardline` command is the one that is running, or the one found on `PATH`; when neither is found the snippet uses the bare name and says so. The `pre-commit` snippet adds `args: [--mode, report, --]` to both hooks when the mode is `report`, because the hook entries pass `--mode block` themselves and the last `--mode` wins. The trailing `--` is kept because `args` replaces the hook's own `args`, which is `--`.
 
-## guardline-config-show
+## Guardline Config Show
 
 ```text
 guardline config [common options] show [--format text|json]
@@ -126,7 +126,7 @@ Prints the effective configuration, after the common options are applied: the fi
 
 `config show` describes what `scan` and `diff` use. The agent hook reads only the file named by its own `--config` option, so check it with `guardline config --config PATH show`.
 
-## version
+## Version
 
 ```text
 guardline --version
