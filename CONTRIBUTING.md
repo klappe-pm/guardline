@@ -22,19 +22,21 @@ python3 -m pytest --cov=guardline
 
 ## Guidelines
 
-- Python 3.11 or newer, standard library only at runtime. `pytest` and `pytest-cov` are the test extra, and `ruff` and `mypy` are the lint extra.
+- Python 3.11 or newer, standard library only at runtime. `pytest` and `pytest-cov` are the `test` extra, and `ruff` and `mypy` are the `lint` extra.
 - Rules are data. A new detection goes in a rule file under `guardline/data/rules/` with an id, a family, a description, a pattern and two examples: one that must fire and one look-alike that must not. See [Add a Rule](docs/how-to-guides/add-a-rule.md).
 - Package data is read through `importlib.resources`, never through a path built from `__file__`. See [Package Data](docs/reference/package-data.md).
 - Never print, log or return a matched secret. Findings carry the rule id and a position only, and a test proves it.
 - Keep every pattern linear: no nested quantifiers, no adjacent overlapping repeats, at most 3 unbounded repeats, every repeat bounded where it can be. The rule loader rejects the unsafe shapes and a test feeds each rule adversarial input.
-- Every security fix gets a test that fails without the fix. Revert the fix once to watch the test fail, then restore it.
 - Tests read fixtures only: never the live home directory, a real network or a real git remote. Test values are synthetic and assembled from fragments so that no test file holds a complete credential.
+- The detection rules in `guardline/data/rules/` name vendors only as the thing they detect.
+- Every security fix gets a test that fails without the fix. Revert the fix once to watch the test fail, then restore it.
 - Documentation goes in `docs/`, in the folder for its kind: `tutorials/`, `how-to-guides/`, `reference/` or `explanation/`. Headings use Title Case, and each paragraph and list item is one line, not hard-wrapped. Filenames are lowercase kebab-case, apart from the community files and `README.md`.
 - Do not use a dash as punctuation. Use a comma, colon, semicolon, period or parentheses, and write ranges as "3 to 5".
 - The banner in `.github/` is made by `scripts/make-banner.py`, which needs `fonttools` and nothing else. `fonttools` is a script-only dependency and is not a dependency of the package.
-- Everything committed here is public. Never add `models`, `providers` or `session-link` keys to the frontmatter of a Markdown file, never add a session link anywhere, and never credit an agent, model, model provider or agent runtime as author or contributor. The detection rules in `guardline/data/rules/` name vendors only as the thing they detect.
+- Everything committed here is public. Never add `models`, `providers` or `session-link` keys to the frontmatter of a Markdown file, never add a session link anywhere, and never credit an agent, model, model provider or agent runtime as author or contributor.
 - Agent instruction files and runtime directories at the repository root are gitignored and never tracked.
 - Do not copy anything from a private repository: no client names, personal paths, notes, plans or prompts. Examples and fixtures are synthetic.
+- Keep any list of private terms to check for (client names, project names) in a file outside the repository, and point `GUARDLINE_FORBIDDEN_TERMS_FILE` at it when you run the tests. Never write such terms in the repository.
 - Never commit a secret, credential, private key, `.env` file or `settings.local.json`. `.env.example` with placeholder values is allowed.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 

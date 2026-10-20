@@ -4,7 +4,7 @@ This page matches a symptom to its cause and fix. Each entry starts from what yo
 
 ## The Hook Does Nothing
 
-- Run the payload by hand with the absolute path to the command, as in [use with claude code](use-with-claude-code.md). If that denies and the runtime does not, the settings entry is wrong: check the `matcher` and that the command path exists.
+- Run the payload by hand with the absolute path to the command, as in [Use with Claude Code](use-with-claude-code.md). If that denies and the runtime does not, the settings entry is wrong: check the `matcher` and that the command path exists.
 - A runtime hook often has a short path. Use `/path/to/venv/bin/guardline`, not `guardline`.
 - If you set `--mode report` the hook prints findings to standard error and allows the call.
 
