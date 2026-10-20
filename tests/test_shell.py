@@ -135,3 +135,45 @@ def test_many_leading_keywords_are_linear(piece: str) -> None:
     started = time.perf_counter()
     Scanner().scan_command(command)
     assert time.perf_counter() - started < 1.0
+
+
+# an escaped or quoted separator is a word, as in a shell --------------------------------------
+
+
+@pytest.mark.parametrize(
+    "terminator",
+    ["\\;", "';'", '";"', "\\+"],
+    ids=[
+        "backslash semicolon",
+        "single quoted semicolon",
+        "double quoted semicolon",
+        "backslash plus",
+    ],
+)
+def test_a_second_find_exec_is_judged_after_each_terminator(terminator: str) -> None:
+    command = f"find . -exec echo a {terminator} -exec printenv {terminator}"
+    assert "printenv" in programs(command)
+    assert "env-dump-printenv" in {f.rule_id for f in Scanner().scan_command(command)}
+
+
+def test_the_find_exec_body_ends_at_a_literal_terminator() -> None:
+    simple = parse_shell(r"find . -exec echo a \; -exec printenv \;").commands[0]
+    assert simple.program == "find"
+    assert simple.args == (".", "-exec", "echo", "a", ";", "-exec", "printenv", ";")
+
+
+def test_an_escaped_semicolon_is_a_word_not_a_separator() -> None:
+    commands = parse_shell(r"echo a \; printenv").commands
+    assert [(c.program, c.args) for c in commands] == [("echo", ("a", ";", "printenv"))]
+    assert Scanner().scan_command(r"echo a \; printenv") == []
+
+
+@pytest.mark.parametrize("operator", ["|", "&", "&&", ">", "("])
+def test_a_quoted_operator_is_an_argument(operator: str) -> None:
+    commands = parse_shell(f"echo a '{operator}' printenv").commands
+    assert [c.program for c in commands] == ["echo"]
+
+
+def test_an_unquoted_separator_still_separates() -> None:
+    assert programs("echo a ; printenv") == ["echo", "printenv"]
+    assert programs("echo a && printenv | cat") == ["echo", "printenv", "cat"]

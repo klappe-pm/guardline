@@ -246,6 +246,7 @@ def _lex(text: str, budget: list[int] | None = None) -> list[str]:
     tokens: list[str] = []
     word: list[str] = []
     has_word = False
+    quoted = False  # part of the current word was escaped or quoted
     i = 0
     n = len(text)
 
@@ -256,24 +257,29 @@ def _lex(text: str, budget: list[int] | None = None) -> list[str]:
                 raise _TooComplex
         tokens.append(token)
 
+    def push_word() -> None:
+        text_ = "".join(word).replace("\x00", "")
+        # An escaped or quoted ``;`` or ``|`` is a word, not an operator, as in a shell.
+        push(_Literal(text_) if quoted and _is_operator(text_) else text_)
+
     while i < n:
         ch = text[i]
         if ch in " \t\r":
             if has_word:
-                push("".join(word).replace("\x00", ""))
-                word, has_word = [], False
+                push_word()
+                word, has_word, quoted = [], False, False
             i += 1
         elif ch == "\\":
             if text.startswith("\n", i + 1):
                 i += 2
             else:
                 word.append(text[i + 1] if i + 1 < n else "\\")
-                has_word = True
+                has_word = quoted = True
                 i += 2
         elif ch in _PUNCTUATION:
             if has_word:
-                push("".join(word).replace("\x00", ""))
-                word, has_word = [], False
+                push_word()
+                word, has_word, quoted = [], False, False
             j = i
             while j < n and text[j] in _PUNCTUATION:
                 j += 1
@@ -284,7 +290,7 @@ def _lex(text: str, budget: list[int] | None = None) -> list[str]:
             if end < 0:
                 raise ValueError("a single quote is not closed")
             word.append(text[i + 1 : end])
-            has_word = True
+            has_word = quoted = True
             i = end + 1
         elif ch == '"' or (ch == "$" and text.startswith('"', i + 1)):
             i += 1 if ch == '"' else 2
@@ -306,11 +312,11 @@ def _lex(text: str, budget: list[int] | None = None) -> list[str]:
                         continue
                 word.append(c)
                 i += 1
-            has_word = True
+            has_word = quoted = True
         elif ch == "$" and text.startswith("'", i + 1):
             decoded, i = _ansi(text, i + 2)
             word.append(decoded)
-            has_word = True
+            has_word = quoted = True
         elif ch == "#" and not has_word:
             end = text.find("\n", i)
             i = n if end < 0 else end
@@ -319,12 +325,20 @@ def _lex(text: str, budget: list[int] | None = None) -> list[str]:
             has_word = True
             i += 1
     if has_word:
-        push("".join(word).replace("\x00", ""))
+        push_word()
     return tokens
 
 
+class _Literal(str):
+    """A word made only of operator characters that was escaped or quoted, so it is data."""
+
+    __slots__ = ()
+
+
 def _is_operator(token: str) -> bool:
-    return bool(token) and all(ch in _PUNCTUATION for ch in token)
+    return (
+        not isinstance(token, _Literal) and bool(token) and all(ch in _PUNCTUATION for ch in token)
+    )
 
 
 # heredocs, segments, substitutions ----------------------------------------------
