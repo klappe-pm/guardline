@@ -40,7 +40,7 @@ Out of scope:
 
 ## protecting-the-configuration
 
-The hook ignores any configuration file it discovers, so an agent that writes `guardline.toml` or a `[tool.guardline]` table with `mode = "report"` or a long `disable` list changes nothing for the hook. As a second layer it denies a Write, Edit or MultiEdit (and NotebookEdit) whose target is any file named `guardline.toml`, a `pyproject.toml` whose new text or existing content mentions `tool.guardline`, or one of the hook's own `--config` or `--rules` files. The finding is `guardline-config-edit` and a person lifts it with `--allow-config-edit`. A shell command that writes such a file is not covered by this second layer, which is why the hook does not read discovered files at all.
+The hook ignores any configuration file it discovers, so an agent that writes `guardline.toml` or a `[tool.guardline]` table with `mode = "report"` or a long `disable` list changes nothing for the hook. As a second layer it denies a Write, Edit or MultiEdit (and NotebookEdit) whose target is any file named `guardline.toml`, a `pyproject.toml` whose new text or existing content mentions `tool.guardline`, the hook's own `--config` file or one of its `--rules` files, or a rule file that the `--config` file names in `rule_files`. The finding is `guardline-config-edit` and a person lifts it with `--allow-config-edit`. A shell command that writes such a file is not covered by this second layer, which is why the hook does not read discovered files at all.
 
 ## pre-commit-and-file-names
 

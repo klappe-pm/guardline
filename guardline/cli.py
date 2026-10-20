@@ -161,7 +161,11 @@ def _setup(
         families=args.family,
         allow_fenced_attribution=args.allow_fenced_attribution,
         allow_config_edit=hook and args.allow_config_edit,
-        protected_paths=[str(path) for path in (args.config, *args.rules) if path] if hook else (),
+        protected_paths=(
+            [str(path) for path in (args.config, *args.rules, *config.rule_files) if path]
+            if hook
+            else ()
+        ),
     )
     mode = args.mode or config.mode or "block"
     return scanner, mode, config

@@ -146,3 +146,62 @@ def test_the_hook_denies_when_its_config_disables_every_rule(
         ["--config", str(config)], payload(command=f"echo {FAKE_TOKEN}"), monkeypatch, capsys
     )
     assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+# rule files named by the hook's configuration are protected --------------------------------
+
+HOUSE_RULES = (
+    'schema_version = 1\n[[rule]]\nid = "house-codename"\nfamily = "house"\n'
+    'description = "Internal codename."\npattern = "bluefalcon"\n'
+    'example_fires = "bluefalcon"\nexample_clean = "redfalcon"\n'
+)
+
+
+def rule_file_setup(tmp_path: Path) -> tuple[Path, Path]:
+    rule = tmp_path / "house.toml"
+    rule.write_text(HOUSE_RULES, encoding="utf-8")
+    config = tmp_path / "guardline.toml"
+    config.write_text('mode = "block"\nrule_files = ["house.toml"]\n', encoding="utf-8")
+    return config, rule
+
+
+def edit_payload(target: Path) -> str:
+    return json.dumps(
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "Edit",
+            "tool_input": {
+                "file_path": str(target),
+                "old_string": "Internal codename.",
+                "new_string": "Nothing.",
+            },
+        }
+    )
+
+
+def test_the_hook_protects_the_rule_files_its_config_names(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config, rule = rule_file_setup(tmp_path)
+    _, out = run_hook_command(["--config", str(config)], edit_payload(rule), monkeypatch, capsys)
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "guardline-config-edit" in out
+
+
+def test_a_person_can_lift_the_rule_file_protection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config, rule = rule_file_setup(tmp_path)
+    argv = ["--config", str(config), "--allow-config-edit"]
+    _, out = run_hook_command(argv, edit_payload(rule), monkeypatch, capsys)
+    assert out == ""
+
+
+def test_a_file_the_config_does_not_name_stays_editable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config, _ = rule_file_setup(tmp_path)
+    other = tmp_path / "notes.toml"
+    other.write_text("x = 1\n", encoding="utf-8")
+    _, out = run_hook_command(["--config", str(config)], edit_payload(other), monkeypatch, capsys)
+    assert out == ""

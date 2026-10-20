@@ -30,7 +30,7 @@ A directory scan met a symbolic link or special file and did not read it, so it 
 
 ## guardline-config-edit
 
-The hook denied a Write, Edit or MultiEdit to `guardline.toml`, to a pyproject.toml that holds or receives a `[tool.guardline]` table, or to the hook's own `--config` or `--rules` file. The agent is not allowed to change the configuration of its own guard. A person edits the file, or runs the hook with `--allow-config-edit` for the session that needs it.
+The hook denied a Write, Edit or MultiEdit to `guardline.toml`, to a pyproject.toml that holds or receives a `[tool.guardline]` table, or to the hook's own `--config` file, `--rules` file or a rule file named in that config's `rule_files`. The agent is not allowed to change the configuration of its own guard. A person edits the file, or runs the hook with `--allow-config-edit` for the session that needs it.
 
 ## the-hook-ignores-my-guardline-toml
 
