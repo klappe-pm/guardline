@@ -43,6 +43,7 @@ All notable changes to this project are documented in this file. The format foll
 
 - The optional dependencies are `test` (`pytest>=9.0.3`, `pytest-cov>=7`) and `lint` (`ruff`, `mypy`). Install both with `pip install -e '.[test,lint]'`.
 - Ruff checks the `S` and `RUF` rule sets as well.
+- The configuration reference says that dictionary keys of a tool input count toward the `max_text_chars` bound of the hook, as the security model already did.
 
 ### Security
 

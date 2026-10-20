@@ -157,3 +157,9 @@ def test_every_documented_pre_commit_snippet_pins_a_release_tag() -> None:
         "docs/how-to-guides/choose-block-or-report-mode.md",
     }
     assert {rev for _, rev in found} == {f"v{__version__}"}, "bump the snippets with the version"
+
+
+def test_the_configuration_reference_counts_keys_in_the_hook_bound() -> None:
+    lines = (ROOT / "docs/reference/configuration.md").read_text(encoding="utf-8").splitlines()
+    row = next(line for line in lines if line.startswith("| `max_text_chars`"))
+    assert "keys" in row
