@@ -447,11 +447,17 @@ def test_config_show_json(run: Run, project: Path) -> None:
     assert document["disabled_rules"] == []
 
 
-def test_config_show_warns_about_a_family_that_matches_nothing(run: Run, project: Path) -> None:
+def test_config_show_rejects_a_family_that_matches_nothing(run: Run, project: Path) -> None:
     (project / "guardline.toml").write_text('families = ["tokens"]\n', encoding="utf-8")
-    _, out, _ = run("config", "show")
-    assert "warning, families that match no rule: tokens" in out
-    assert "active rules: 0" in out
+    code, _, err = run("config", "show")
+    assert (code, "unknown family(s): tokens" in err) == (2, True)
+
+
+def test_scan_refuses_a_misspelled_family_instead_of_passing(run: Run, project: Path) -> None:
+    (project / "guardline.toml").write_text('families = ["tokens"]\n', encoding="utf-8")
+    (project / "notes.txt").write_text("nothing here\n", encoding="utf-8")
+    code, _, err = run("scan", str(project / "notes.txt"))
+    assert (code, "unknown family(s): tokens" in err) == (2, True)
 
 
 def test_config_show_reports_a_broken_file_as_an_error(run: Run, project: Path) -> None:

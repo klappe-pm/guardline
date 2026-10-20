@@ -189,9 +189,22 @@ def build_scanner(
     allow_config_edit: bool = False,
     protected_paths: Sequence[str] = (),
 ) -> Scanner:
-    """Build a ``Scanner`` from a configuration and command line overrides."""
+    """Build a ``Scanner`` from a configuration and command line overrides.
+
+    Raises:
+        ConfigError: a chosen family matches no active rule. A misspelled family would
+            otherwise leave the scanner with no rules, so block mode would pass everything.
+    """
     rules = build_ruleset(config, extra_rule_files, extra_disable)
     chosen = families if families else config.families
+    if chosen is not None:
+        present = {rule.family for rule in rules}
+        unknown = sorted(set(chosen) - present)
+        if unknown:
+            raise ConfigError(
+                f"unknown family(s): {', '.join(unknown)} "
+                f"(active families: {', '.join(sorted(present))})"
+            )
     return Scanner(
         rules,
         allow_fenced_attribution=allow_fenced_attribution,

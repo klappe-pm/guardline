@@ -156,6 +156,23 @@ def test_scanner_limits_and_families_come_from_config() -> None:
     assert {rule.family for rule in override.rules} == {"attribution"}
 
 
+def test_unknown_family_in_config_is_an_error_not_an_empty_scanner() -> None:
+    with pytest.raises(ConfigError, match="unknown famil"):
+        build_scanner(Config(families=("tokens",)))
+
+
+def test_unknown_family_on_the_command_line_is_an_error() -> None:
+    with pytest.raises(ConfigError, match="tokens"):
+        build_scanner(Config(), families=["token", "tokens"])
+
+
+def test_family_from_a_custom_rule_file_is_known(tmp_path: Path) -> None:
+    file = tmp_path / "mine.toml"
+    file.write_text(RULE_FILE, encoding="utf-8")
+    scanner = build_scanner(Config(rule_files=(file,), families=("style",)))
+    assert {rule.id for rule in scanner.rules} == {"style-no-todo"}
+
+
 def test_disabling_the_trailer_rules_lets_the_trailer_through() -> None:
     config = Config(disable=("attribution-co-author-trailer", "attribution-vendor-noreply-address"))
     assert build_scanner(config).scan_text(TRAILER) == []

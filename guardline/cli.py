@@ -23,7 +23,6 @@ from guardline import __version__
 from guardline.config import (
     MODES,
     Config,
-    build_ruleset,
     build_scanner,
     discover_config,
     load_config_file,
@@ -315,14 +314,11 @@ def effective_config(args: argparse.Namespace) -> dict[str, object]:
     else:
         source = "none (built-in defaults)"
     mode_source = "--mode" if args.mode else "config file" if config.mode else "default"
-    requested = args.family or config.families or ()
-    known = {rule.family for rule in build_ruleset(config, args.rules)}
     return {
         "source": source,
         "mode": mode,
         "mode_source": mode_source,
         "families": sorted({rule.family for rule in scanner.rules}),
-        "unknown_families": sorted(set(requested) - known),
         "disabled_rules": sorted({*config.disable, *args.disable}),
         "rule_files": [str(path) for path in (*config.rule_files, *args.rules)],
         "exclude": list(config.exclude),
@@ -347,8 +343,6 @@ def _cmd_config(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     line("rule files", info["rule_files"])
     line("exclude", info["exclude"])
     out.write(f"active rules: {info['active_rules']}\n")
-    if info["unknown_families"]:
-        line("warning, families that match no rule", info["unknown_families"])
     out.write("note: guardline hook reads only the file named by its --config option.\n")
     return 0
 
