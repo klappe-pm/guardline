@@ -29,7 +29,7 @@ If a form needs the parser to change, for example a new wrapper that runs anothe
 ## Run the Tests
 
 ```bash
-/path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests/test_rules.py /path/to/guardline/tests/test_security.py
+/path/to/guardline/.venv/bin/python -P -m pytest /path/to/guardline/tests/test_rules.py /path/to/guardline/tests/test_security.py
 ```
 
 The rule tests are parametrized over every rule, so the new rule is picked up with no test change. They check that both examples exist, that the rule fires on one and not the other, that no rule fires on the look-alike, that the pattern has no nested quantifier, and that the rule survives inputs built from its own example in shapes meant to be slow. Update the pinned family counts in `test_family_counts` and in `test_cli.py` (the rule count) because adding a rule is meant to be a visible decision.

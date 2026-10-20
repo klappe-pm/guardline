@@ -20,7 +20,7 @@ This installs Guardline as an editable package with the `test` extra (`pytest` a
 ## Run the Tests
 
 ```bash
-/path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests
+/path/to/guardline/.venv/bin/python -P -m pytest /path/to/guardline/tests
 ```
 
 Everything should pass on Linux. Tests that need `git` are skipped with a reason when it is missing. See [Run the Tests](../how-to-guides/run-the-tests.md) for the other checks.
@@ -47,7 +47,7 @@ Notes on this entry: the id starts with the family; the pattern starts at a toke
 The rule tests are parametrized over every rule in the package, so no test file changes. Run them:
 
 ```bash
-/path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests/test_rules.py
+/path/to/guardline/.venv/bin/python -P -m pytest /path/to/guardline/tests/test_rules.py
 ```
 
 They fail until you also update the expected family count in `test_family_counts`, because the count is pinned on purpose: adding a rule is a visible decision. Change the expected `token` count and run again. Then break the rule on purpose, for example change `{24}` to `{25}`, and see `test_fire_example_fires_its_rule` fail for `token-acme-key` without echoing the example. Put it back.
@@ -57,7 +57,7 @@ They fail until you also update the expected family count in `test_family_counts
 Update the rule counts where they are written (the README, `docs/reference/rules.md`, the changelog) and add the rule to the table in `docs/reference/rules.md`. Then run the checks:
 
 ```bash
-/path/to/guardline/.venv/bin/python -m pytest /path/to/guardline/tests --cov=guardline
+/path/to/guardline/.venv/bin/python -P -m pytest /path/to/guardline/tests --cov=guardline
 ```
 
 ```bash
