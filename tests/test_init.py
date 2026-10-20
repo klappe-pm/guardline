@@ -5,7 +5,9 @@ from __future__ import annotations
 import io
 import itertools
 import json
+import os
 import shlex
+import stat
 import sys
 import tomllib
 from collections.abc import Callable
@@ -478,3 +480,138 @@ def test_config_show_lists_extra_rule_files(run: Run, project: Path) -> None:
     assert code == 0
     assert str(rules) in out
     assert "custom" in out
+
+
+# writing: no symbolic link is followed and no change made meanwhile is lost ---------------
+
+
+def test_init_does_not_create_a_file_through_a_dangling_symlink(run: Run, project: Path) -> None:
+    outside = project.parent / f"{project.name}-outside"
+    outside.mkdir()
+    (project / "guardline.toml").symlink_to(outside / "created.conf")
+    code, _, err = run("init", "--yes", "--target", "guardline.toml")
+    assert code == 2
+    assert "symbolic link" in err
+    assert not (outside / "created.conf").exists()
+
+
+def test_init_does_not_edit_a_pyproject_that_links_outside(run: Run, project: Path) -> None:
+    victim = project.parent / f"{project.name}-victim.toml"
+    victim.write_text("[server]\nport = 80\n", encoding="utf-8")
+    (project / "pyproject.toml").symlink_to(victim)
+    code, _, err = run("init", "--yes")
+    assert code == 2
+    assert "symbolic link" in err
+    assert victim.read_text(encoding="utf-8") == "[server]\nport = 80\n"
+
+
+def test_init_force_does_not_write_through_a_link_to_an_existing_file(
+    run: Run, project: Path
+) -> None:
+    victim = project.parent / f"{project.name}-victim.conf"
+    victim.write_text("important\n", encoding="utf-8")
+    link = project / "guardline.toml"
+    link.symlink_to(victim)
+    code, _, _ = run("init", "--yes", "--force", "--target", "guardline.toml")
+    assert code == 2
+    assert victim.read_text(encoding="utf-8") == "important\n"
+    assert link.is_symlink()
+
+
+def test_a_link_put_in_place_during_confirmation_is_not_followed(
+    run: Run, project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    victim = project.parent / f"{project.name}-late-victim.conf"
+    victim.write_text("important\n", encoding="utf-8")
+
+    def answer(prompt: str, default: str, shown: str | None = None) -> str:
+        (project / "guardline.toml").symlink_to(victim)
+        return "y"
+
+    monkeypatch.setattr(initcmd, "_ask", answer)
+    code, _, _ = run(
+        "init",
+        "--target",
+        "guardline.toml",
+        "--mode",
+        "block",
+        "--families",
+        "all",
+        "--hook",
+        "none",
+    )
+    assert code == 2
+    assert victim.read_text(encoding="utf-8") == "important\n"
+
+
+def test_init_does_not_overwrite_a_file_created_before_confirmation(
+    run: Run, project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def answer(prompt: str, default: str, shown: str | None = None) -> str:
+        (project / "guardline.toml").write_text('mode = "report"\n', encoding="utf-8")
+        return "y"
+
+    monkeypatch.setattr(initcmd, "_ask", answer)
+    code, _, err = run(
+        "init",
+        "--target",
+        "guardline.toml",
+        "--mode",
+        "block",
+        "--families",
+        "all",
+        "--hook",
+        "none",
+    )
+    assert code == 2
+    assert "nothing written" in err
+    assert (project / "guardline.toml").read_text(encoding="utf-8") == 'mode = "report"\n'
+
+
+def test_init_does_not_overwrite_a_replacement_changed_during_confirmation(
+    run: Run, project: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (project / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+
+    def answer(prompt: str, default: str, shown: str | None = None) -> str:
+        (project / "pyproject.toml").write_text("[project]\nname = 'edited'\n", encoding="utf-8")
+        return "y"
+
+    monkeypatch.setattr(initcmd, "_ask", answer)
+    code, _, err = run(
+        "init",
+        "--target",
+        "pyproject.toml",
+        "--mode",
+        "block",
+        "--families",
+        "all",
+        "--hook",
+        "none",
+    )
+    assert code == 2
+    assert "changed while init was running" in err
+    assert (project / "pyproject.toml").read_text(
+        encoding="utf-8"
+    ) == "[project]\nname = 'edited'\n"
+
+
+def test_replacing_a_file_keeps_its_mode_and_leaves_no_temporary_file(
+    run: Run, project: Path
+) -> None:
+    file = project / "pyproject.toml"
+    file.write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    file.chmod(0o640)
+    code, _, _ = run("init", "--yes")
+    assert code == 0
+    assert "[tool.guardline]" in file.read_text(encoding="utf-8")
+    assert stat.S_IMODE(file.stat().st_mode) == 0o640
+    assert sorted(path.name for path in project.iterdir()) == [".git", "pyproject.toml"]
+
+
+def test_a_new_file_is_created_with_ordinary_permissions(run: Run, project: Path) -> None:
+    code, _, _ = run("init", "--yes")
+    assert code == 0
+    mode = stat.S_IMODE((project / "guardline.toml").stat().st_mode)
+    assert mode & 0o600 == 0o600
+    assert not mode & 0o022 or os.name == "nt"

@@ -12,10 +12,13 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import os
 import re
 import shlex
 import shutil
+import stat
 import sys
+import tempfile
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -127,15 +130,60 @@ class Plan:
         return "".join(line if line.endswith("\n") else line + "\n" for line in lines)
 
 
+def write_plan(plan: Plan) -> None:
+    """Write a planned change without following a link or losing a change made meanwhile.
+
+    A new file is created exclusively and without following a link, so a file or link
+    that appeared since the check makes the write fail. An existing file is read again
+    and compared with the text the plan was built from, then replaced through a
+    temporary file in the same directory, so a reader never sees a half written file and
+    the mode of the original is kept.
+
+    Raises:
+        ConfigError: the target is now a link, appeared, or changed while the person was
+            looking at the diff. Nothing is written.
+    """
+    path = plan.path
+    if plan.old is None:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(path, flags, 0o644)
+        except FileExistsError:
+            raise ConfigError(f"{path} appeared while init was running; nothing written") from None
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(plan.new)
+        return
+    try:
+        current = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(current, "r", encoding="utf-8") as handle:
+            now = handle.read()
+            mode = stat.S_IMODE(os.fstat(handle.fileno()).st_mode)
+    except (OSError, UnicodeDecodeError):
+        raise ConfigError(f"{path} changed while init was running; nothing written") from None
+    if now != plan.old:
+        raise ConfigError(f"{path} changed while init was running; nothing written")
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".guardline-init-")
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(plan.new)
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    except BaseException:
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
 def inspect_target(directory: Path, target: str, *, force: bool) -> tuple[Path, str | None]:
     """Check that ``target`` can be written and return its path and current text.
 
     Raises:
-        ConfigError: the target already holds configuration and ``force`` is off, a
-            ``pyproject.toml`` target is missing or unreadable, or a ``guardline.toml``
-            beside it would override it.
+        ConfigError: the target is a symbolic link, the target already holds
+            configuration and ``force`` is off, a ``pyproject.toml`` target is missing or
+            unreadable, or a ``guardline.toml`` beside it would override it.
     """
     path = directory / target
+    if path.is_symlink():
+        raise ConfigError(f"{path} is a symbolic link; refusing to write through it")
     if target == "guardline.toml":
         if path.exists() and not force:
             raise ConfigError(f"{path} already exists; use --force to replace it")
@@ -350,7 +398,7 @@ def run_init(args: argparse.Namespace, out: IO[str], cwd: Path | None = None) ->
     if not yes and _ask("Write this?", "n", "y/N").lower() not in ("y", "yes"):
         out.write("Nothing written.\n")
         return 1
-    path.write_text(plan.new, encoding="utf-8")
+    write_plan(plan)
     out.write(f"\nWrote {path}\n")
     _print_snippets(out, hooks, path, mode)
     out.write("\nCheck what is active with: guardline config show\n")
