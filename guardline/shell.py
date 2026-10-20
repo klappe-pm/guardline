@@ -359,7 +359,7 @@ def _heredocs(line: str) -> list[tuple[str, bool]]:
     )
     found: list[tuple[str, bool]] = []
     for i, token in enumerate(tokens[:-1]):
-        if token == "<<" and not _is_operator(tokens[i + 1]):  # noqa: S105 (a shell operator)
+        if token == "<<" and _is_operator(token) and not _is_operator(tokens[i + 1]):  # noqa: S105
             delimiter = tokens[i + 1].lstrip("-")
             if delimiter:
                 found.append((delimiter, receives))

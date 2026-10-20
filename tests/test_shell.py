@@ -177,3 +177,21 @@ def test_a_quoted_operator_is_an_argument(operator: str) -> None:
 def test_an_unquoted_separator_still_separates() -> None:
     assert programs("echo a ; printenv") == ["echo", "printenv"]
     assert programs("echo a && printenv | cat") == ["echo", "printenv", "cat"]
+
+
+@pytest.mark.parametrize("quoted", ["'<<'", '"<<"', "$'<<'", r"\<\<"])
+def test_a_quoted_heredoc_operator_does_not_hide_the_next_lines(quoted: str) -> None:
+    command = f"cat {quoted} EOF\nprintenv\nEOF"
+    assert "printenv" in programs(command)
+    assert "env-dump-printenv" in {f.rule_id for f in Scanner().scan_command(command)}
+
+
+@pytest.mark.parametrize("quoted", ["'<<<'", '"<<<"', "'<<-'"])
+def test_other_quoted_operators_are_words_too(quoted: str) -> None:
+    command = f"cat {quoted} EOF\nprintenv"
+    assert "printenv" in programs(command)
+
+
+def test_a_real_heredoc_of_data_stays_data() -> None:
+    assert Scanner().scan_command("cat <<EOF\nprintenv\nEOF") == []
+    assert Scanner().scan_command("cat <<-EOF\nprintenv\nEOF") == []
