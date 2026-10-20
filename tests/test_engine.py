@@ -11,6 +11,7 @@ from guardline.engine import (
     DEFAULT_MAX_COMMAND_CHARS,
     DEFAULT_MAX_TEXT_CHARS,
     MAX_FINDINGS,
+    MAX_PAYLOAD_LEAVES,
     TOO_LARGE_RULE,
     TRUNCATED_RULE,
     fenced_ranges,
@@ -385,3 +386,16 @@ def test_a_trailer_in_a_quoted_string_is_still_found() -> None:
     assert "attribution-assisted-by-trailer" in rule_ids(
         Scanner().scan_text(f"say 'Assisted-By: {agent}'")
     )
+
+
+# the leaf limit is the documented one: more than 2000 strings is too many ---------------------
+
+
+def test_exactly_the_leaf_limit_of_strings_is_judged_whole() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": ["x"] * MAX_PAYLOAD_LEAVES}
+    assert Scanner().scan_payload(payload) == []
+
+
+def test_more_than_the_leaf_limit_of_strings_is_reported() -> None:
+    payload = {"tool_name": "mcp__x__y", "tool_input": ["x"] * (MAX_PAYLOAD_LEAVES + 1)}
+    assert "guardline-command-too-complex" in rule_ids(Scanner().scan_payload(payload))

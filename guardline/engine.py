@@ -437,9 +437,11 @@ class Scanner:
         depth: int,
         out: list[tuple[str, str | None, str]],
     ) -> None:
-        if depth > MAX_PAYLOAD_DEPTH or len(out) > MAX_PAYLOAD_LEAVES:
+        if depth > MAX_PAYLOAD_DEPTH:
             raise _TooBig
         if isinstance(value, str):
+            if len(out) >= MAX_PAYLOAD_LEAVES:
+                raise _TooBig
             out.append((path, key, value))
         elif isinstance(value, dict):
             for name, item in value.items():
@@ -447,6 +449,8 @@ class Scanner:
                 self._collect(item, f"{path}.{label}", name, depth + 1, out)
         elif isinstance(value, list):
             if key in _COMMAND_KEYS and value and all(isinstance(part, str) for part in value):
+                if len(out) >= MAX_PAYLOAD_LEAVES:
+                    raise _TooBig
                 out.append((path, key, " ".join(shlex.quote(part) for part in value)))
                 return
             for index, item in enumerate(value):

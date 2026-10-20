@@ -70,3 +70,4 @@ All notable changes to this project are documented in this file. The format foll
 - The hook checks the payload length before it checks for an empty payload, so a payload of whitespace over the limit is denied as "longer than" the limit and not as empty.
 - `max_text_chars` is capped at 16 MiB (16777216) and `max_command_chars` at 1 MiB (1048576). A larger value is a `ConfigError`; `max_text_chars = 100000000000` used to end a scan with an internal error or an attempt to allocate that much.
 - The pre-commit snippet from `guardline init` and the two how-to guides pin `rev: v0.1.0`, the release tag, instead of the moving `main` branch. A test requires every `rev:` in the documents to be a release tag or a commit hash.
+- A tool input with exactly 2001 strings is now reported as too complex, as the documents promise for more than 2000. The leaf check ran before a string was added, so one string too many was judged without the finding.
