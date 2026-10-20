@@ -834,14 +834,16 @@ class _Walker:
         return len(arg) > 2 and ("-" + arg[-1]) in spec.command_flags
 
     def _find(self, args: list[str], depth: int, offset: int) -> None:
-        for k, arg in enumerate(args):
-            if arg in _EXEC_FLAGS:
-                inner: list[str] = []
-                for word in args[k + 1 :]:
-                    if word in (";", "+"):
-                        break
-                    inner.append(word)
-                self.argv(inner, depth, offset)
+        k = 0
+        while k < len(args):
+            if args[k] in _EXEC_FLAGS:
+                end = k + 1
+                while end < len(args) and args[end] not in (";", "+"):
+                    end += 1
+                self.argv(args[k + 1 : end], depth, offset)
+                k = end + 1
+            else:
+                k += 1
 
     def _docker(self, program: str, args: list[str], depth: int, offset: int) -> None:
         i = 0

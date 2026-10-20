@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+import time
+import tracemalloc
+
+import pytest
+
+from guardline import Scanner
+from guardline.engine import DEFAULT_MAX_COMMAND_CHARS
 from guardline.shell import MAX_DEPTH, parse_shell
 
 
@@ -95,3 +102,28 @@ def test_a_command_over_the_token_budget_is_flagged_exhausted() -> None:
 
 def test_a_normal_command_is_not_exhausted() -> None:
     assert not parse_shell("bash -c 'ls | wc -l'").exhausted
+
+
+# work grows linearly with the command ------------------------------------------------------
+
+
+def test_find_with_many_exec_flags_is_linear_in_time() -> None:
+    command = ("find . " + "-exec " * 6000)[: DEFAULT_MAX_COMMAND_CHARS // 2]
+    started = time.perf_counter()
+    Scanner().scan_command(command)
+    assert time.perf_counter() - started < 1.0
+
+
+def test_find_with_many_exec_flags_is_linear_in_memory() -> None:
+    command = ("find . " + "-exec " * 3000)[: DEFAULT_MAX_COMMAND_CHARS // 4]
+    tracemalloc.start()
+    try:
+        Scanner().scan_command(command)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < 20_000_000, f"peak {peak / 1e6:.0f} MB for {len(command)} characters"
+
+
+def test_find_still_finds_every_exec_body() -> None:
+    assert "printenv" in programs("find . -exec printenv + -exec ls {} \\;")

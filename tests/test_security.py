@@ -216,6 +216,7 @@ KNOWN_COMMAND_BYPASSES = {
     "alias or function defined elsewhere": "mydump",
     "ruby prints the environment": "ruby -e 'puts ENV.to_a'",
     "node prints the environment": "node -p 'process.env'",
+    "second find exec after an escaped semicolon": "find . -exec echo a \\; -exec printenv \\;",
     "attribution written by a shell redirect": f"echo 'Co-Authored-By: {AGENT} <x>' >> notes.md",
 }
 
