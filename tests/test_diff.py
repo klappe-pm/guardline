@@ -136,3 +136,31 @@ def test_diff_relative_does_not_hide_a_staged_file_outside_the_directory(
     git(repo, "add", "settings.py")
     assert main(["diff", "--repo", str(repo / "docs"), "--staged"]) == 1
     assert "token-github-token" in capsys.readouterr().out
+
+
+def test_diff_reports_the_real_path_under_mnemonic_prefix(
+    repo: Path, tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gitconfig = tmp_path_factory.mktemp("gitconfig") / "config"
+    gitconfig.write_text("[diff]\n\tmnemonicPrefix = true\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(gitconfig))
+    (repo / "settings.py").write_text(f"key = {FAKE_TOKEN}\n", encoding="utf-8")
+    git(repo, "add", "settings.py")
+    assert [f.path for f in parse_added_lines(git_diff(repo, staged=True))] == ["settings.py"]
+    (repo / "keep.txt").write_text(f"old\n{TRAILER}\nmore\n", encoding="utf-8")
+    assert [f.path for f in parse_added_lines(git_diff(repo))] == ["keep.txt"]
+
+
+def test_diff_command_prints_the_real_path_under_mnemonic_prefix(
+    repo: Path,
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    gitconfig = tmp_path_factory.mktemp("gitconfig") / "config"
+    gitconfig.write_text("[diff]\n\tmnemonicPrefix = true\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(gitconfig))
+    (repo / "settings.py").write_text(f"key = {FAKE_TOKEN}\n", encoding="utf-8")
+    git(repo, "add", "settings.py")
+    assert main(["diff", "--repo", str(repo), "--staged", "--no-config"]) == 1
+    assert capsys.readouterr().out.startswith("settings.py:")
