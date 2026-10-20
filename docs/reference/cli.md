@@ -8,21 +8,21 @@ This page lists every subcommand, option and exit status of the `guardline` comm
 guardline [--version] <command> [options]
 ```
 
-Commands: `hook`, `scan`, `diff` and `rules`.
+Commands: `hook`, `scan`, `diff`, `rules`, `init` and `config`.
 
 ## exit-statuses
 
 | status | meaning |
 | --- | --- |
 | 0 | clean, or report mode, or a hook that allowed the call or denied it with JSON |
-| 1 | block mode found something (`scan`, `diff`), or `rules check` found a problem |
+| 1 | block mode found something (`scan`, `diff`), `rules check` found a problem, or you declined the confirmation of `init` |
 | 2 | a usage, configuration or rule file error; for `hook --deny-with exit-code`, a deny |
 
 The `hook` command never blocks with exit 1, because a runtime treats exit 1 as a non-blocking error. See [hook protocol](hook-protocol.md).
 
 ## common-options
 
-These options are accepted by `hook`, `scan`, `diff` and `rules`.
+These options are accepted by `hook`, `scan`, `diff`, `rules` and `config`. They go before the action of `rules` and `config`, as in `guardline config --no-config show`.
 
 | option | meaning |
 | --- | --- |
@@ -82,6 +82,44 @@ guardline rules check [FILE ...]
 ```
 
 With no file, validates the built-in rules and runs their examples. With files, loads them, validates every rule and runs each rule's examples against the built-in rules plus the file. Exits 0 and prints `ok: N rule(s) validated` when every rule fires on its fire example and stays quiet on its look-alike example. Otherwise it prints each problem on standard error and exits 1. A file that fails validation exits 2. Messages never quote an example.
+
+## guardline-init
+
+```text
+guardline init [--mode block|report] [--families NAMES] [--target guardline.toml|pyproject.toml] [--hook claude-code|pre-commit|none] [--yes] [--force]
+```
+
+Chooses the settings and writes the configuration file in the current directory. Without flags it asks four questions in this order, and an answer given by a flag is not asked again. Standard input must be available for the questions: when it runs out, the command stops with exit 2 and writes nothing.
+
+1. Target file. Asked only when a `pyproject.toml` exists in the current directory. The default is `pyproject.toml`, which gets a `[tool.guardline]` table appended; without one the file is `guardline.toml`.
+2. Mode. `block` (the default) or `report`, each explained in one line.
+3. Families. A comma separated list of `attribution`, `env-dump` and `token`, or `all` (the default). When every family is chosen the `families` key is left out, so a family added in a later release is not excluded by accident.
+4. Setup snippets. `claude-code`, `pre-commit`, `both` or `none` (the default).
+
+Then it prints a unified diff of the change and asks `Write this? [y/N]`. Answering anything but `y` or `yes` writes nothing and exits 1.
+
+| option | meaning |
+| --- | --- |
+| `--mode MODE` | `block` or `report`; skips the mode question |
+| `--families NAMES` | comma separated families, or `all`; an unknown family is an error |
+| `--target FILE` | `guardline.toml` or `pyproject.toml`; a `pyproject.toml` target must already exist and must be valid TOML |
+| `--hook NAME` | print a setup snippet after writing: `claude-code` or `pre-commit`; repeatable; `none` prints nothing and cannot be combined with another value |
+| `--yes` | accept the default for every question not given by a flag, and skip the confirmation |
+| `--force` | replace an existing `guardline.toml`, or an existing `[tool.guardline]` table |
+
+Without `--force`, an existing `guardline.toml` or an existing `[tool.guardline]` table is an error (exit 2) and nothing is written. Two cases are errors even with `--force`: a `pyproject.toml` target while a `guardline.toml` sits in the same directory, because that file takes precedence and would hide the new table, and a `pyproject.toml` whose `guardline` table is defined in a way that cannot be rewritten safely, such as dotted keys under `[tool]`. The new file text is parsed again before it is written, so the file always loads.
+
+The `claude-code` snippet is the `PreToolUse` settings entry for `guardline hook --config ABSOLUTE_PATH`. The hook never searches for configuration, so the snippet names the file you just wrote. The path of the `guardline` command is the one that is running, or the one found on `PATH`; when neither is found the snippet uses the bare name and says so. The `pre-commit` snippet adds `args: [--mode, report]` to both hooks when the mode is `report`, because the hook entries pass `--mode block` themselves and the last `--mode` wins.
+
+## guardline-config-show
+
+```text
+guardline config [common options] show [--format text|json]
+```
+
+Prints the effective configuration, after the common options are applied: the file the settings came from (or `none (built-in defaults)`, or `none (--no-config)`), the mode and where it came from (`config file`, `--mode` or `default`), the families that have at least one active rule, the disabled rule ids, extra rule files, exclude globs and the number of active rules. A family named in the configuration or by `--family` that matches no rule is listed as a warning, because a misspelled family turns every rule off. `--format json` prints the same facts as one document with the keys `source`, `mode`, `mode_source`, `families`, `unknown_families`, `disabled_rules`, `rule_files`, `exclude` and `active_rules`.
+
+`config show` describes what `scan` and `diff` use. The agent hook reads only the file named by its own `--config` option, so check it with `guardline config --config PATH show`.
 
 ## version
 

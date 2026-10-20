@@ -4,11 +4,11 @@ Documentation for people who use guardline: you run the command, wire it into an
 
 ## tutorials
 
-Lessons that take you through a task from start to finish, for someone who has not done it before. Start with [getting started](tutorials/getting-started.md), which goes from an empty virtual environment to a scan, a hook decision and a configuration file. Index: [tutorials](tutorials/README.md).
+Lessons that take you through a task from start to finish, for someone who has not done it before. Start with [getting started](tutorials/getting-started.md), which goes from an empty virtual environment to a scan, a hook decision, a configuration file written by `guardline init` and a disabled rule. Index: [tutorials](tutorials/README.md).
 
 ## how-to-guides
 
-Recipes for a specific goal, for someone who already knows the basics. [install](how-to-guides/install.md) covers every install method, [use with claude code](how-to-guides/use-with-claude-code.md) holds the hook settings snippet, [use with pre-commit](how-to-guides/use-with-pre-commit.md) wires guardline into a repository, [scan in ci](how-to-guides/scan-in-ci.md) scans a branch or a diff, [disable a rule](how-to-guides/disable-a-rule.md) turns rules off, [add a custom rule](how-to-guides/add-a-custom-rule.md) adds your own, including personal style rules, [quote third party attribution](how-to-guides/quote-third-party-attribution.md) covers the fenced code switch, and [troubleshooting](how-to-guides/troubleshooting.md) matches a failure to its fix. Index: [how-to guides](how-to-guides/README.md).
+Recipes for a specific goal, for someone who already knows the basics. [install](how-to-guides/install.md) covers every install method, [use with claude code](how-to-guides/use-with-claude-code.md) holds the hook settings snippet, [use with pre-commit](how-to-guides/use-with-pre-commit.md) wires guardline into a repository, [scan in ci](how-to-guides/scan-in-ci.md) scans a branch or a diff, [choose block or report mode](how-to-guides/choose-block-or-report-mode.md) sets what a finding does, [disable a rule](how-to-guides/disable-a-rule.md) turns rules off, [add a custom rule](how-to-guides/add-a-custom-rule.md) adds your own, including personal style rules, [quote third party attribution](how-to-guides/quote-third-party-attribution.md) covers the fenced code switch, and [troubleshooting](how-to-guides/troubleshooting.md) matches a failure to its fix. Index: [how-to guides](how-to-guides/README.md).
 
 ## reference
 

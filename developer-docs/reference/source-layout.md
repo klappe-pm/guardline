@@ -16,7 +16,8 @@ This page maps the repository: each module of the `guardline` package and each t
 | `guardline/config.py` | find and validate configuration, assemble the rule set and the scanner |
 | `guardline/hook.py` | the agent runtime hook: payload in, decision out, fail closed |
 | `guardline/diffscan.py` | run `git diff` and scan the added lines |
-| `guardline/cli.py` | the `guardline` command |
+| `guardline/initcmd.py` | `guardline init`: the questions, the config text, the diff and the setup snippets |
+| `guardline/cli.py` | the `guardline` command, including `config show` |
 | `guardline/py.typed` | marks the package as typed |
 | `guardline/data/rules/` | the built-in rule files, see [package data](package-data.md) |
 
@@ -41,6 +42,7 @@ This page maps the repository: each module of the `guardline` package and each t
 | `tests/test_hook.py` | the hook |
 | `tests/test_cli.py` | the command line |
 | `tests/test_config.py` | configuration |
+| `tests/test_init.py` | `guardline init` and `guardline config show` |
 | `tests/test_diff.py` | the diff scan |
 | `tests/test_consistency.py` | one verdict from every entry point |
 | `tests/test_security.py` | leaks, timing, fail closed, known bypasses |

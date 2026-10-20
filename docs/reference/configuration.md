@@ -1,6 +1,6 @@
 # configuration
 
-This page lists every configuration key and says how the file is found. Configuration is optional; with none, every built-in rule runs and the mode is `block`.
+This page lists every configuration key and says how the file is found. Configuration is optional; with none, every built-in rule runs and the mode is `block`. `guardline init` writes a file with the `mode` and `families` keys, and `guardline config show` prints what is active; see the [cli reference](cli.md).
 
 ## where-it-lives
 

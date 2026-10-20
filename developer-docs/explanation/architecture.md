@@ -6,7 +6,7 @@ This page explains how the modules fit together and why. It is for a contributor
 
 Every entry point ends in a `Scanner`. The path is the same regardless of where the text comes from:
 
-1. An entry point obtains text. `cli.py` reads files, standard input or a git diff; `hook.py` reads a JSON payload; library callers pass strings.
+1. An entry point obtains text. `cli.py` reads files, standard input or a git diff (`initcmd.py` is not an entry point to the scanner: it only writes the configuration file that `config.py` reads); `hook.py` reads a JSON payload; library callers pass strings.
 2. `config.py` finds the configuration, loads extra rule files through `rules.py`, applies disables and builds a `Scanner` over the resulting rules.
 3. `engine.py` decides how to judge the text. Plain text goes through the `text` scope rules. A shell command goes to `shell.py`, which returns simple commands, and the `args` and `word` scope rules are applied to each. A payload is split into its command and its authored text fields and each goes the matching way.
 4. Matches become `Finding` objects that carry a rule id and a position and nothing else.

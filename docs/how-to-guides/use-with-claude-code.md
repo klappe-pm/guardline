@@ -2,6 +2,10 @@
 
 This guide registers guardline as a `PreToolUse` hook in Claude Code, so every tool call is judged before it runs: shell commands for environment dumps and secrets, file writes and edits for attribution and token-shaped values, and message bodies for the same. The decision comes back as JSON and a deny stops the tool call.
 
+## let-init-write-it
+
+`guardline init --hook claude-code` writes your configuration file and prints the settings snippet below with the absolute path of the command and of the file already filled in. The rest of this page explains each part, and the [choose block or report mode](choose-block-or-report-mode.md) guide covers the mode.
+
 ## settings-snippet
 
 Add the hook to `~/.claude/settings.json` for every project, or to `.claude/settings.json` in one project. Use the absolute path of the command, because the hook environment may not have your shell path:

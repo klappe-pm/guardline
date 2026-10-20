@@ -88,6 +88,20 @@ A frozen dataclass with the fields described in [rule file format](rule-file-for
 - `load_config_file(path)`, `discover_config(start)`, `config_from_table(table, origin)`: read configuration; raise `ConfigError`.
 - `build_ruleset(config, extra_rule_files=(), extra_disable=())` and `build_scanner(config, *, extra_rule_files=(), extra_disable=(), families=None, allow_fenced_attribution=False, allow_config_edit=False, protected_paths=())`: assemble the active rules and a `Scanner`.
 
+## initcmd-module
+
+The code behind `guardline init`. It reads and writes the files you name and prints to the stream it is given.
+
+- `known_families() -> tuple[str, ...]`: the family names of the built-in rules, sorted.
+- `parse_families(text) -> tuple[str, ...]`: parse a comma separated list or `all` into canonical order; raises `ConfigError` for an empty list or an unknown family.
+- `parse_hooks(values) -> tuple[str, ...]`: normalise snippet choices, dropping `none`; raises `ConfigError` when `none` is mixed with another choice.
+- `render_body(mode, families) -> str` and `expected_table(mode, families) -> dict`: the TOML text written for a choice, and the table the loader reads back from it.
+- `inspect_target(directory, target, *, force) -> (Path, str | None)`: check a target can be written and return its current text; raises `ConfigError`.
+- `compose(path, old, mode, families, target) -> Plan`: build the new file text, and check it parses to the expected table; raises `ConfigError`. `Plan` has `path`, `old`, `new` and `diff()`.
+- `guardline_executable() -> (str, bool)` and `hook_command(config_path) -> (str, bool)`: the command path and the hook command line; the boolean says whether an absolute path was found.
+- `claude_code_snippet(command) -> str` and `pre_commit_snippet(mode) -> str`: the snippets.
+- `run_init(args, out, cwd=None) -> int`: run the command.
+
 ## hook-module
 
 - `run_hook(stdin_text, scanner, *, mode="block", deny_with="json") -> HookResult`: judge one payload. `HookResult` has `exit_code`, `stdout` and `stderr`.

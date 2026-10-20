@@ -43,4 +43,4 @@ Configuration in `guardline.toml` or `[tool.guardline]` is read as usual, starti
 pre-commit run guardline --all-files
 ```
 
-To see findings without blocking while you tune rules, set `args: [--mode, report]`.
+To see findings without blocking while you tune rules, set `args: [--mode, report]`. `guardline init --hook pre-commit` prints this snippet for the mode you choose, and the [choose block or report mode](choose-block-or-report-mode.md) guide explains why the argument is needed.

@@ -4,7 +4,7 @@ Reference pages describe the machinery as it is, organised around the thing desc
 
 ## pages
 
-- [cli](cli.md): every subcommand and option of the `guardline` command, and its exit statuses.
+- [cli](cli.md): every subcommand and option of the `guardline` command, including `init` and `config show`, and its exit statuses.
 - [configuration](configuration.md): every key in `guardline.toml` and `[tool.guardline]`, and how the file is found.
 - [rule file format](rule-file-format.md): every field of a rule and every check the loader makes.
 - [rules](rules.md): all 43 built-in rules by family, with scope and description.

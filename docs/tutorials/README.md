@@ -4,4 +4,4 @@ Tutorials are lessons. Each one takes a reader who has not done the task before 
 
 ## pages
 
-- [getting started](getting-started.md): from an empty virtual environment to an installed command, a scan, a hook decision and a configuration file.
+- [getting started](getting-started.md): from an empty virtual environment to an installed command, a scan, a hook decision, a configuration chosen with `guardline init` and a disabled rule.

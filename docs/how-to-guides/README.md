@@ -8,6 +8,7 @@ How-to guides are recipes. Each one serves a reader who already knows the basics
 - [use with claude code](use-with-claude-code.md): register the hook in Claude Code settings, and read what a deny looks like.
 - [use with pre-commit](use-with-pre-commit.md): add the file hook and the commit message hook to a repository.
 - [scan in ci](scan-in-ci.md): scan a branch, a diff or a commit message range in a CI job.
+- [choose block or report mode](choose-block-or-report-mode.md): decide what a finding does, set it for the command line, Claude Code and pre-commit, and confirm it.
 - [disable a rule](disable-a-rule.md): turn rules off by id, by family or for a path.
 - [add a custom rule](add-a-custom-rule.md): write and check your own rule file, including personal style rules.
 - [quote third party attribution](quote-third-party-attribution.md): allow a quoted trailer inside a fenced code block.

@@ -1,4 +1,4 @@
-"""The ``guardline`` command: hook, scan, diff and rules.
+"""The ``guardline`` command: hook, scan, diff, rules, init and config.
 
 Exit codes: 0 means clean, or report mode; 1 means block mode found something;
 2 means a usage, configuration or rule file error. The ``hook`` command is the one
@@ -20,11 +20,19 @@ from pathlib import Path
 from typing import IO
 
 from guardline import __version__
-from guardline.config import Config, build_scanner, discover_config, load_config_file
+from guardline.config import (
+    MODES,
+    Config,
+    build_ruleset,
+    build_scanner,
+    discover_config,
+    load_config_file,
+)
 from guardline.diffscan import git_diff, parse_added_lines, scan_added
 from guardline.engine import Scanner
 from guardline.errors import GuardlineError
 from guardline.hook import run_hook, startup_failure
+from guardline.initcmd import HOOKS, TARGETS, run_init
 from guardline.model import Finding, Rule
 from guardline.rules import builtin_rules, load_rule_file, merge_rules, verify_rule_examples
 
@@ -89,6 +97,25 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "files", nargs="*", type=Path, help="rule files; default is the built-in rules"
     )
+
+    init = sub.add_parser("init", help="choose a mode and rule families and write the config")
+    init.add_argument("--mode", choices=MODES, help="block stops the action, report only prints")
+    init.add_argument("--families", help="comma separated families to enable, or all")
+    init.add_argument("--target", choices=TARGETS, help="the file to write the configuration to")
+    init.add_argument(
+        "--hook",
+        action="append",
+        default=[],
+        choices=HOOKS,
+        help="print a setup snippet: claude-code or pre-commit; repeatable, or none",
+    )
+    init.add_argument("--yes", action="store_true", help="accept the default for every question")
+    init.add_argument("--force", action="store_true", help="replace an existing configuration")
+
+    config = sub.add_parser("config", parents=[common], help="show the effective configuration")
+    config_actions = config.add_subparsers(dest="action", required=True)
+    show = config_actions.add_parser("show", help="print what is active and where it came from")
+    show.add_argument("--format", choices=("text", "json"), default="text")
     return parser
 
 
@@ -274,6 +301,58 @@ def _cmd_rules(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     return 0
 
 
+def _cmd_init(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
+    return run_init(args, out)
+
+
+def effective_config(args: argparse.Namespace) -> dict[str, object]:
+    """Describe the configuration the command line would use, and where each part came from."""
+    scanner, mode, config = _setup(args)
+    if args.no_config:
+        source = "none (--no-config)"
+    elif config.origin is not None:
+        source = str(config.origin)
+    else:
+        source = "none (built-in defaults)"
+    mode_source = "--mode" if args.mode else "config file" if config.mode else "default"
+    requested = args.family or config.families or ()
+    known = {rule.family for rule in build_ruleset(config, args.rules)}
+    return {
+        "source": source,
+        "mode": mode,
+        "mode_source": mode_source,
+        "families": sorted({rule.family for rule in scanner.rules}),
+        "unknown_families": sorted(set(requested) - known),
+        "disabled_rules": sorted({*config.disable, *args.disable}),
+        "rule_files": [str(path) for path in (*config.rule_files, *args.rules)],
+        "exclude": list(config.exclude),
+        "active_rules": len(scanner.rules),
+    }
+
+
+def _cmd_config(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
+    info = effective_config(args)
+    if args.format == "json":
+        out.write(json.dumps(info, indent=2) + "\n")
+        return 0
+
+    def line(label: str, value: object) -> None:
+        shown = ", ".join(value) if isinstance(value, list) else value
+        out.write(f"{label}: {shown or 'none'}\n")
+
+    line("source", info["source"])
+    out.write(f"mode: {info['mode']} ({info['mode_source']})\n")
+    line("families", info["families"])
+    line("disabled rules", info["disabled_rules"])
+    line("rule files", info["rule_files"])
+    line("exclude", info["exclude"])
+    out.write(f"active rules: {info['active_rules']}\n")
+    if info["unknown_families"]:
+        line("warning, families that match no rule", info["unknown_families"])
+    out.write("note: guardline hook reads only the file named by its --config option.\n")
+    return 0
+
+
 def _rule_dict(rule: Rule) -> dict[str, object]:
     return {
         "id": rule.id,
@@ -289,7 +368,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     out, err = sys.stdout, sys.stderr
-    handlers = {"hook": _cmd_hook, "scan": _cmd_scan, "diff": _cmd_diff, "rules": _cmd_rules}
+    handlers = {
+        "hook": _cmd_hook,
+        "scan": _cmd_scan,
+        "diff": _cmd_diff,
+        "rules": _cmd_rules,
+        "init": _cmd_init,
+        "config": _cmd_config,
+    }
     try:
         return handlers[args.command](args, out, err)
     except GuardlineError as error:

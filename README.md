@@ -34,6 +34,12 @@ Judge a tool call the way an agent runtime hook does. The command reads the payl
 echo '{"tool_name":"Bash","tool_input":{"command":"printenv"}}' | guardline hook
 ```
 
+Choose block or report mode and the rule families, write the configuration and print the setup snippets in one step:
+
+```bash
+guardline init
+```
+
 Add it to Claude Code with the settings snippet in [use with claude code](docs/how-to-guides/use-with-claude-code.md), or to a repository with the hook ids in [use with pre-commit](docs/how-to-guides/use-with-pre-commit.md).
 
 ## documentation

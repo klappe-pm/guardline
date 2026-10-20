@@ -325,3 +325,19 @@ def test_guardline_finds_nothing_in_its_own_repository(path: Path) -> None:
     findings = scanner.scan_text(text, str(path.relative_to(ROOT)))
     if findings:
         pytest.fail(f"{path.relative_to(ROOT)} holds {sorted({f.rule_id for f in findings})}")
+
+
+def test_documented_config_show_output_is_real(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from guardline.cli import main
+
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "guardline.toml").write_text(
+        'mode = "block"\nfamilies = ["attribution", "token"]\n', encoding="utf-8"
+    )
+    assert main(["config", "show"]) == 0
+    real = capsys.readouterr().out.replace(str(tmp_path), "/tmp/guardline-tour/project")
+    text = (ROOT / "docs/tutorials/getting-started.md").read_text(encoding="utf-8")
+    assert real in text

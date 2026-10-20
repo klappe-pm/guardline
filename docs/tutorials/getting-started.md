@@ -1,6 +1,6 @@
 # getting-started
 
-This tutorial takes a new user from an empty virtual environment to a working setup. You install the command, scan a commit message, judge a tool call the way an agent hook does, and turn one rule off with a configuration file. It follows one path and explains only what that path needs. For the full command surface see the [cli reference](../reference/cli.md), and for every configuration key see [configuration](../reference/configuration.md).
+This tutorial takes a new user from an empty virtual environment to a working setup. You install the command, scan a commit message, judge a tool call the way an agent hook does, choose your settings with `guardline init`, and turn one rule off with a configuration file. It follows one path and explains only what that path needs. For the full command surface see the [cli reference](../reference/cli.md), and for every configuration key see [configuration](../reference/configuration.md).
 
 ## what-you-need
 
@@ -67,6 +67,40 @@ echo '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' | /tmp/guardline-t
 ```
 
 The [hook protocol reference](../reference/hook-protocol.md) describes the payload and the decision in full, and [use with claude code](../how-to-guides/use-with-claude-code.md) shows how to register the hook.
+
+## choose-your-settings
+
+So far every run used the defaults: every rule on, and block mode. The `init` command lets you choose, and writes the result to a configuration file. Make a project directory and run it there:
+
+```bash
+mkdir -p /tmp/guardline-tour/project && cd /tmp/guardline-tour/project && /tmp/guardline-tour/venv/bin/guardline init
+```
+
+It asks four questions and shows the default in brackets, so pressing Enter accepts it. Answer them like this:
+
+1. Mode: press Enter for `block`. In block mode a finding stops the action. `report` only prints findings.
+2. Families: type `attribution,token` to run those two families and leave the environment dump rules off.
+3. Setup snippets: press Enter for `none`. You will print them in the [Claude Code guide](../how-to-guides/use-with-claude-code.md) and the [pre-commit guide](../how-to-guides/use-with-pre-commit.md) when you need them.
+4. Write this: it shows a diff of the file it is about to create. Type `y`.
+
+There is no `pyproject.toml` in this directory, so there is no question about where to write the file: it creates `guardline.toml`. Ask guardline what is now active:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline config show
+```
+
+```text
+source: /tmp/guardline-tour/project/guardline.toml
+mode: block (config file)
+families: attribution, token
+disabled rules: none
+rule files: none
+exclude: none
+active rules: 29
+note: guardline hook reads only the file named by its --config option.
+```
+
+`init` never overwrites a configuration that already exists unless you pass `--force`, and `--yes` skips every question and the confirmation for scripts. See [choose block or report mode](../how-to-guides/choose-block-or-report-mode.md) for how to decide on a mode.
 
 ## turn-a-rule-off
 

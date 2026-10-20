@@ -48,6 +48,7 @@ The configuration runs `mypy --strict` on the `guardline` package.
 - `test_hook.py`: the hook's decisions and its failure handling.
 - `test_cli.py`: the command line, its exit statuses and its output formats.
 - `test_config.py`: configuration discovery, validation and rule assembly.
+- `test_init.py`: `guardline init` for every mode and family combination, the interactive questions, refusing to overwrite, the printed snippets, and `guardline config show`.
 - `test_diff.py`: scanning added lines, against a throwaway local git repository.
 - `test_consistency.py`: the same input gets the same verdict from the API, the hook, the file scan, the diff scan and the pre-commit entries.
 - `test_security.py`: no value in any output, bounded work on adversarial input, fail closed, and the pinned list of known bypasses.
