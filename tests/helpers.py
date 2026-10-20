@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import shlex
+import threading
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
+T = TypeVar("T")
 MANIFEST = Path(__file__).resolve().parents[1] / ".pre-commit-hooks.yaml"
 
 
@@ -55,3 +59,27 @@ def pre_commit_argv(hook_id: str, files: list[str], args: list[str] | None = Non
     hook = manifest_hooks()[hook_id]
     assert hook["entry"][0] == "guardline"
     return [*hook["entry"][1:], *(hook["args"] if args is None else args), *files]
+
+
+def call_within(seconds: float, call: Callable[[], T]) -> T:
+    """Run ``call`` and return its result, failing the test if it does not return in time.
+
+    Used for code that must not block on a FIFO. The call runs in a daemon thread, so a
+    regression fails the test instead of hanging the whole suite.
+    """
+    outcome: dict[str, object] = {}
+
+    def target() -> None:
+        try:
+            outcome["value"] = call()
+        except BaseException as error:  # noqa: BLE001 - handed back to the test thread
+            outcome["error"] = error
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    thread.join(seconds)
+    if thread.is_alive():
+        pytest.fail(f"the call did not return within {seconds} seconds")
+    if "error" in outcome:
+        raise outcome["error"]  # type: ignore[misc]
+    return outcome["value"]  # type: ignore[return-value]

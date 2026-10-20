@@ -10,6 +10,8 @@ Either a `guardline.toml` with the keys at the top level, or a `[tool.guardline]
 
 An unknown key is an error, so a misspelled key cannot silently do nothing.
 
+The file must be a regular file of at most 1 MiB, in UTF-8, and not nested absurdly deep. A FIFO, a device, an oversized file, bytes that are not UTF-8 and a document nested past the parser's recursion limit are all configuration errors, so none of them can hang the hook or surface as an unexpected exception. A symbolic link to a regular file is followed.
+
 | key | type | default | meaning |
 | --- | --- | --- | --- |
 | `mode` | `"report"` or `"block"` | `"block"` | `report` prints findings and exits 0, `block` exits 1 on a finding. The `--mode` option wins. |

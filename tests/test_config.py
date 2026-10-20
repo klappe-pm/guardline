@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -16,6 +17,7 @@ from guardline.config import (
 )
 from guardline.errors import ConfigError, RuleError
 from guardline.rules import builtin_rules
+from tests.helpers import call_within
 from tests.samples import TRAILER
 
 RULE_FILE = (
@@ -211,3 +213,50 @@ def test_a_config_file_with_empty_families_is_a_config_error(tmp_path: Path) -> 
     file.write_text("families = []\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="families"):
         load_config_file(file)
+
+
+# reading the file safely ---------------------------------------------------------------------
+
+
+def test_a_config_that_is_not_utf8_is_a_config_error(tmp_path: Path) -> None:
+    path = tmp_path / "pyproject.toml"
+    path.write_bytes(b'[tool.guardline]\nmode = "block"\n# \xff\n')
+    with pytest.raises(ConfigError, match="UnicodeDecodeError"):
+        load_config_file(path)
+
+
+def test_a_config_nested_too_deeply_is_a_config_error(tmp_path: Path) -> None:
+    path = tmp_path / "guardline.toml"
+    path.write_text("x = " + "[" * 5000 + "]" * 5000 + "\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="RecursionError"):
+        load_config_file(path)
+
+
+def test_an_oversized_config_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "guardline.toml"
+    path.write_text('mode = "block"\n#' + "a" * (1 << 20) + "\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="larger than"):
+        load_config_file(path)
+
+
+def test_a_config_at_the_size_limit_is_read(tmp_path: Path) -> None:
+    path = tmp_path / "guardline.toml"
+    body = 'mode = "block"\n#'
+    path.write_text(body + "a" * ((1 << 20) - len(body) - 1) + "\n", encoding="utf-8")
+    assert load_config_file(path).mode == "block"
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs a FIFO")
+def test_a_fifo_config_is_refused_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "guardline.toml"
+    os.mkfifo(fifo)
+    with pytest.raises(ConfigError, match="not a regular file"):
+        call_within(10, lambda: load_config_file(fifo))
+
+
+def test_a_config_that_is_a_link_to_a_regular_file_is_still_read(tmp_path: Path) -> None:
+    real = tmp_path / "real.toml"
+    real.write_text('mode = "report"\n', encoding="utf-8")
+    link = tmp_path / "guardline.toml"
+    link.symlink_to(real)
+    assert load_config_file(link).mode == "report"

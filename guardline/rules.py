@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from guardline.errors import RuleError
+from guardline.fileio import FileRefused, read_small_file
 from guardline.model import SCOPES, Rule
 
 SCHEMA_VERSION = 1
@@ -284,6 +285,8 @@ def parse_rules(text: str, origin: str) -> tuple[Rule, ...]:
         document = tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
         raise RuleError(f"{origin}: not valid TOML: {error}") from None
+    except RecursionError:
+        raise RuleError(f"{origin}: not valid TOML: nested too deeply") from None
     version = document.get("schema_version")
     if version != SCHEMA_VERSION:
         raise RuleError(f"{origin}: schema_version must be {SCHEMA_VERSION}")
@@ -312,7 +315,9 @@ def load_rule_file(path: str | Path) -> tuple[Rule, ...]:
     """
     file = Path(path)
     try:
-        text = file.read_text(encoding="utf-8")
+        text = read_small_file(file).decode("utf-8")
+    except FileRefused as refusal:
+        raise RuleError(f"{file}: cannot read rule file: {refusal}") from None
     except (OSError, UnicodeDecodeError) as error:
         raise RuleError(f"{file}: cannot read rule file: {error.__class__.__name__}") from None
     return parse_rules(text, str(file))

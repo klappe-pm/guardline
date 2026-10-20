@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -205,3 +208,29 @@ def test_a_file_the_config_does_not_name_stays_editable(
     other.write_text("x = 1\n", encoding="utf-8")
     _, out = run_hook_command(["--config", str(config)], edit_payload(other), monkeypatch, capsys)
     assert out == ""
+
+
+# a path that never produces data cannot hang the hook ---------------------------------------
+
+
+def hook_process(option: str, path: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603 - fixed argument list, no shell
+        [sys.executable, "-m", "guardline", "hook", option, str(path)],
+        input=payload(command="ls"),
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs a FIFO")
+@pytest.mark.parametrize("option", ["--config", "--rules"])
+def test_a_fifo_named_by_the_hook_is_denied_without_hanging(tmp_path: Path, option: str) -> None:
+    fifo = tmp_path / "named.toml"
+    os.mkfifo(fifo)
+    try:
+        done = hook_process(option, fifo)
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"the hook blocked reading a FIFO named by {option}")
+    assert json.loads(done.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"

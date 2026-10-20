@@ -48,6 +48,10 @@ By design. The hook reads a configuration file only when its command names one w
 
 `guardline: error: ... is a symbolic link; refusing to write through it` means the target is a link. Replace the link with a regular file, or choose the other target. `... appeared while init was running` and `... changed while init was running` mean the file was created or edited after the diff was shown; nothing was written, so run `guardline init` again.
 
+## cannot-read-configuration-or-rule-file
+
+`cannot read configuration: not a regular file`, `larger than 1048576 bytes`, `UnicodeDecodeError` and `RecursionError` mean the file named by `--config` or `--rules` is not a plain UTF-8 file of reasonable size and nesting. The hook blocks the call in block mode. Point the option at a regular file.
+
 ## configuration-errors
 
 `unknown key(s)` means the file uses a key guardline does not read. `allow_fenced_attribution` is not a key on purpose. See [configuration](../reference/configuration.md). In the hook, a configuration error blocks the call in block mode, so fix the file.

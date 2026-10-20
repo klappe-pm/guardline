@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter
 from pathlib import Path
@@ -12,6 +13,7 @@ from guardline import Scanner, builtin_rules, load_rule_file, verify_rule_exampl
 from guardline.errors import RuleError
 from guardline.model import BUILTIN_FAMILIES, Rule
 from guardline.rules import has_nested_quantifier, merge_rules, parse_rules
+from tests.helpers import call_within
 
 RULES = builtin_rules()
 IDS = [rule.id for rule in RULES]
@@ -190,3 +192,40 @@ def test_load_rule_file_reports_a_missing_file(tmp_path: Path) -> None:
 )
 def test_nested_quantifier_detection(pattern: str, nested: bool) -> None:
     assert has_nested_quantifier(pattern) is nested
+
+
+# reading a rule file safely -------------------------------------------------------------------
+
+
+def test_a_rule_file_that_is_not_utf8_is_a_rule_error(tmp_path: Path) -> None:
+    path = tmp_path / "rules.toml"
+    path.write_bytes(b"schema_version = 1\n# \xff\n")
+    with pytest.raises(RuleError, match="UnicodeDecodeError"):
+        load_rule_file(path)
+
+
+def test_a_rule_file_nested_too_deeply_is_a_rule_error(tmp_path: Path) -> None:
+    path = tmp_path / "rules.toml"
+    path.write_text("schema_version = 1\nx = " + "[" * 5000 + "]" * 5000 + "\n", encoding="utf-8")
+    with pytest.raises(RuleError, match="nested too deeply"):
+        load_rule_file(path)
+
+
+def test_parse_rules_reports_deep_nesting_as_a_rule_error() -> None:
+    with pytest.raises(RuleError, match="nested too deeply"):
+        parse_rules("x = " + "[" * 5000 + "]" * 5000 + "\n", "inline")
+
+
+def test_an_oversized_rule_file_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "rules.toml"
+    path.write_text("schema_version = 1\n#" + "a" * (1 << 20) + "\n", encoding="utf-8")
+    with pytest.raises(RuleError, match="larger than"):
+        load_rule_file(path)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs a FIFO")
+def test_a_fifo_rule_file_is_refused_without_blocking(tmp_path: Path) -> None:
+    fifo = tmp_path / "rules.toml"
+    os.mkfifo(fifo)
+    with pytest.raises(RuleError, match="not a regular file"):
+        call_within(10, lambda: load_rule_file(fifo))

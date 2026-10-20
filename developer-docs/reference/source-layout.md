@@ -13,6 +13,7 @@ This page maps the repository: each module of the `guardline` package and each t
 | `guardline/rules.py` | parse, validate and verify rule files; the nested quantifier check; the built-in rule loader |
 | `guardline/shell.py` | the shell command splitter and its wrapper handling |
 | `guardline/engine.py` | `Scanner`: text, command and payload scanning, fenced code, limits |
+| `guardline/fileio.py` | read a small configuration or rule file: regular files only, opened without blocking, capped at 1 MiB |
 | `guardline/config.py` | find and validate configuration, assemble the rule set and the scanner |
 | `guardline/hook.py` | the agent runtime hook: payload in, decision out, fail closed |
 | `guardline/diffscan.py` | run `git diff` and scan the added lines |

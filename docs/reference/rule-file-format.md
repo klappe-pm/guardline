@@ -18,6 +18,8 @@ example_fires = "an input the rule must fire on"
 example_clean = "a look-alike the rule must not fire on"
 ```
 
+A rule file must be a regular file of at most 1 MiB in UTF-8. A FIFO, a device, an oversized file, bytes that are not UTF-8 and deeply nested TOML are all rule file errors.
+
 `schema_version` must be `1`. Any other value, and any other top level key, is an error. A file with no rules is valid. A rule id may appear once per file and may not reuse an id from a built-in rule or another loaded file.
 
 ## fields

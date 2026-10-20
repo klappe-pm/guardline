@@ -18,6 +18,7 @@ from typing import Any
 
 from guardline.engine import DEFAULT_MAX_COMMAND_CHARS, DEFAULT_MAX_TEXT_CHARS, Scanner
 from guardline.errors import ConfigError
+from guardline.fileio import FileRefused, read_small_file
 from guardline.model import Rule
 from guardline.rules import builtin_rules, load_rule_file, merge_rules
 
@@ -111,9 +112,10 @@ def config_from_table(table: dict[str, Any], origin: Path) -> Config:
 
 def _read(path: Path) -> dict[str, Any]:
     try:
-        with path.open("rb") as handle:
-            return tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError) as error:
+        return tomllib.loads(read_small_file(path).decode("utf-8"))
+    except FileRefused as refusal:
+        raise ConfigError(f"{path}: cannot read configuration: {refusal}") from None
+    except (OSError, UnicodeDecodeError, RecursionError, tomllib.TOMLDecodeError) as error:
         raise ConfigError(
             f"{path}: cannot read configuration: {error.__class__.__name__}"
         ) from None
