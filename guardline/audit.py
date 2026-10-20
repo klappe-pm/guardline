@@ -185,6 +185,18 @@ def _is_unbounded(high: int) -> bool:
     return high == _const.MAXREPEAT or high > BIG_BOUND
 
 
+def _is_wide(high: int) -> bool:
+    return _is_unbounded(high) or high > WIDE_REPEAT
+
+
+def _wide_repeat_next(data: list[Any], index: int) -> bool:
+    """Whether the item after ``index`` is a wide repeat, so the item sits between two repeats."""
+    if index + 1 >= len(data):
+        return False
+    op, argument = data[index + 1]
+    return op in _REPEATS and _is_wide(argument[1])
+
+
 class _Audit:
     """Walks a parsed pattern looking for shapes that make matching super linear."""
 
@@ -218,14 +230,15 @@ class _Audit:
         previous = incoming
         for index, (op, argument) in enumerate(data):
             after = _first(data[index + 1 :], self.ignore_case, follow)
+            between = _wide_repeat_next(data, index)
             if op in _REPEATS:
                 low, high, body = argument
                 reason, previous = self._repeat(
-                    low, high, body, previous, after, inside_wide, inside_many
+                    low, high, body, previous, after, inside_wide, inside_many, between
                 )
             else:
                 reason, previous = self._other(
-                    op, argument, inside_wide, inside_many, after, previous
+                    op, argument, inside_wide, inside_many, after, previous, between
                 )
             if reason:
                 return reason, previous
@@ -240,9 +253,10 @@ class _Audit:
         after: frozenset[str] | None,
         inside_wide: bool,
         inside_many: bool,
+        between: bool = False,
     ) -> tuple[str | None, frozenset[str] | None]:
         unbounded = _is_unbounded(high)
-        wide = unbounded or high > WIDE_REPEAT
+        wide = _is_wide(high)
         if unbounded:
             self.unbounded += 1
             if self.unbounded > MAX_UNBOUNDED_REPEATS:
@@ -262,6 +276,10 @@ class _Audit:
         elif low == 0 and previous is not None:
             # An optional item can be skipped, so the repeats on both sides can still touch.
             carried = previous | chars if chars is not None else previous
+        elif between and chars is not None and previous is not None and previous & chars:
+            # A fixed repeat of a character that the wide repeat before it can match does
+            # not separate that repeat from the wide repeat after it.
+            carried = previous
         else:
             carried = None
         inner_follow = after
@@ -279,9 +297,16 @@ class _Audit:
         inside_many: bool,
         after: Any,
         previous: frozenset[str] | None,
+        between: bool = False,
     ) -> tuple[str | None, frozenset[str] | None]:
         if op in _GROUPREFS:
             return "backreference", None
+        if between and previous is not None:
+            chars = _node_chars(op, argument, self.ignore_case)
+            if chars is not None and previous & chars:
+                # One character that the wide repeat before it can match is no delimiter, so
+                # that repeat is carried forward to be compared with the one after it.
+                return None, previous
         if op == _const.BRANCH:
             return self._branch(argument[1], inside_wide, inside_many, after, previous)
         if op == _const.SUBPATTERN:

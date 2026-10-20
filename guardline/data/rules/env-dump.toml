@@ -56,7 +56,7 @@ family = "env-dump"
 description = "declare, typeset, readonly or local with -p prints variable definitions."
 scope = "args"
 programs = ["declare", "typeset", "readonly", "local"]
-pattern = '(?:^| )-[A-Za-z]*p[A-Za-z]*(?= |$)'
+pattern = '(?:^| )-(?=[A-Za-z]*p)[A-Za-z]+(?= |$)'
 example_fires = "declare -p"
 example_clean = "declare -a items"
 
@@ -97,7 +97,7 @@ description = "ps with -E in an option cluster prints each process environment."
 scope = "args"
 programs = ["ps"]
 value_options = ["-o", "-O", "-p", "-u", "-U", "-g", "-G", "-t", "-k", "-M", "-N", "-q", "-s", "-C", "--format", "--sort", "--pid", "--ppid", "--user", "--group"]
-pattern = '(?:^| )-[A-Za-z]*E[A-Za-z]*(?= |$)'
+pattern = '(?:^| )-(?=[A-Za-z]*E)[A-Za-z]+(?= |$)'
 example_fires = "ps -E"
 example_clean = "ps -e"
 
@@ -108,7 +108,7 @@ description = "ps with a BSD style option word containing e (ps e, ps eww, ps au
 scope = "args"
 programs = ["ps"]
 value_options = ["-o", "-O", "-p", "-u", "-U", "-g", "-G", "-t", "-k", "-M", "-N", "-q", "-s", "-C", "--format", "--sort", "--pid", "--ppid", "--user", "--group"]
-pattern = '(?:^| )[A-Za-z]*e[A-Za-z]*(?= |$)'
+pattern = '(?:^| )(?=[A-Za-z]*e)[A-Za-z]+(?= |$)'
 example_fires = "ps eww"
 example_clean = "ps -u deploy"
 
@@ -140,7 +140,7 @@ description = "security find-generic-password or find-internet-password with -w 
 scope = "args"
 programs = ["security"]
 ignore_case = false
-pattern = '\bfind-(?:generic|internet)-password\b.{0,2000}? -[A-Za-z]*[wg][A-Za-z]*(?= |$)'
+pattern = '\bfind-(?:generic|internet)-password\b.{0,2000}? -(?=[A-Za-z]*[wg])[A-Za-z]+(?= |$)'
 example_fires = "security find-generic-password -s svc -w"
 example_clean = "security find-generic-password -s svc"
 
@@ -151,6 +151,6 @@ description = "security dump-keychain with -d prints secrets."
 scope = "args"
 programs = ["security"]
 ignore_case = false
-pattern = '(?:^| )dump-keychain(?: .{0,500}?)? -[A-Za-z]*d[A-Za-z]*(?= |$)'
+pattern = '(?:^| )dump-keychain(?: .{0,500}?)? -(?=[A-Za-z]*d)[A-Za-z]+(?= |$)'
 example_fires = "security dump-keychain -d"
 example_clean = "security dump-keychain"

@@ -336,11 +336,58 @@ def test_a_scoped_case_flag_is_seen_inside_a_group() -> None:
     assert unsafe_pattern_reason(r"(?i:a*)b*;", 0) is None
 
 
-@pytest.mark.parametrize("pattern", [r"(a)*a*;", r"(?:ab)*(?:ab)*;", r"a*(?=a)a*;"])
+@pytest.mark.parametrize(
+    "pattern", [r"(a)*a*;", r"(?:ab)*(?:ab)*;", r"a*(?=a)a*;", r"a*aaa*;", r"[ab]*ab[ab]*;"]
+)
 def test_documented_audit_gap_is_still_open(pattern: str) -> None:
     """Pinned by the known gaps in docs/explanation/security-model.md."""
     assert unsafe_pattern_reason(pattern, re.IGNORECASE) is None
     assert unbounded_repeat_warning(pattern, re.IGNORECASE) is not None
+
+
+@pytest.mark.parametrize("pattern", [r"a*aa*;", r"a*a{2}a*;", r"a*a{1,3}a*;", r"\w+_\w+;"])
+def test_the_audit_sees_an_overlap_across_a_literal(pattern: str) -> None:
+    flags = re.IGNORECASE | re.MULTILINE | re.UNICODE
+    assert unsafe_pattern_reason(pattern, flags) == "adjacent overlapping repeats"
+
+
+@pytest.mark.parametrize("pattern", [r"a*;a*;", r"a*b{2}a*;", r"\d+\.\d+;", r"\w+-\w+;"])
+def test_a_literal_outside_both_repeats_still_separates_them(pattern: str) -> None:
+    flags = re.IGNORECASE | re.MULTILINE | re.UNICODE
+    assert unsafe_pattern_reason(pattern, flags) is None
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "declare -" + "p" * 30000 + "!",
+        "ps " + "e" * 30000 + "!",
+        "ps -" + "E" * 30000 + "!",
+        "security find-generic-password -" + "w" * 30000 + "!",
+        "security dump-keychain -" + "d" * 30000 + "!",
+    ],
+    ids=["declare", "ps-bsd", "ps-flag", "security-print", "security-dump"],
+)
+def test_a_long_run_of_the_flag_letter_is_scanned_in_linear_time(command: str) -> None:
+    """These rules once ran a repeat on each side of the letter they look for: ten seconds."""
+    start = time.perf_counter()
+    Scanner().scan_command(command)
+    assert time.perf_counter() - start < 2.0
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "declare -p",
+        "declare -xp",
+        "ps -E",
+        "ps -eE",
+        "ps eww",
+        "security find-generic-password -gw",
+    ],
+)
+def test_the_flag_rules_still_fire_on_a_word_with_the_letter(command: str) -> None:
+    assert {f.rule_id for f in Scanner().scan_command(command)}
 
 
 def test_a_bound_over_1024_counts_as_unbounded() -> None:
