@@ -297,6 +297,18 @@ def test_a_payload_over_the_limit_in_bytes_but_not_in_characters_is_refused() ->
     assert f"longer than {limit} bytes" in reason_of(run_hook(stdin, Scanner(), mode="block"))
 
 
+def test_an_oversize_whitespace_payload_is_reported_as_oversize_not_empty() -> None:
+    limit = 4 * DEFAULT_MAX_TEXT_CHARS
+    reason = reason_of(run_hook(" " * (limit + 1), Scanner(), mode="block"))
+    assert f"longer than {limit} bytes" in reason
+    assert "empty" not in reason
+
+
+def test_a_whitespace_payload_within_the_limit_is_still_empty() -> None:
+    assert "is empty" in reason_of(run_hook(" \n\t ", Scanner(), mode="block"))
+    assert "is empty" in reason_of(run_hook(" " * (4 * DEFAULT_MAX_TEXT_CHARS), Scanner()))
+
+
 def test_a_payload_at_the_limit_is_still_judged() -> None:
     limit = 4 * DEFAULT_MAX_TEXT_CHARS
     stdin = payload(command="ls")

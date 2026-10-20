@@ -103,13 +103,13 @@ def run_hook(
         The streams to write and the exit code to use.
     """
     event = "PreToolUse"
-    if not stdin_text.strip():
-        return _failure("the hook payload is empty", mode, event, deny_with)
     limit = MAX_PAYLOAD_FACTOR * scanner.max_text_chars
     if len(stdin_text) > limit or (
         not stdin_text.isascii() and len(stdin_text.encode("utf-8")) > limit
     ):
         return _failure(f"the hook payload is longer than {limit} bytes", mode, event, deny_with)
+    if not stdin_text.strip():
+        return _failure("the hook payload is empty", mode, event, deny_with)
     try:
         payload: Any = json.loads(stdin_text)
     except RecursionError:
