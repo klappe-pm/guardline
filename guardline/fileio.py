@@ -15,7 +15,7 @@ MAX_FILE_BYTES = 1024 * 1024
 """Largest configuration or rule file guardline reads, in bytes."""
 
 
-class FileRefused(Exception):  # noqa: N818 - a refusal, not an error condition of the program
+class FileRefused(Exception):
     """The path is not a small regular file. ``str(error)`` says why, and never names content."""
 
 

@@ -29,7 +29,7 @@ The command is then `/path/to/venv/bin/guardline`. Use that absolute path in hoo
 For development, or to pin a commit:
 
 ```bash
-git clone https://github.com/klappe-pm/guardline /path/to/guardline && python3 -m venv /path/to/guardline/.venv && /path/to/guardline/.venv/bin/pip install -e '/path/to/guardline[test]'
+git clone https://github.com/klappe-pm/guardline /path/to/guardline && python3 -m venv /path/to/guardline/.venv && /path/to/guardline/.venv/bin/pip install -e '/path/to/guardline[test,lint]'
 ```
 
 ## As a Pre-Commit Hook

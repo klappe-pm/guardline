@@ -10,7 +10,7 @@ This tutorial takes a new contributor from a clone of the repository to a tested
 ## Set Up
 
 ```bash
-python3 -m venv /path/to/guardline/.venv && /path/to/guardline/.venv/bin/pip install -e '/path/to/guardline[test]'
+python3 -m venv /path/to/guardline/.venv && /path/to/guardline/.venv/bin/pip install -e '/path/to/guardline[test,lint]'
 ```
 
 ## Run the Suite

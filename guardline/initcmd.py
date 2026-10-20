@@ -215,7 +215,8 @@ def compose(path: Path, old: str | None, mode: str, families: tuple[str, ...], t
     body = render_body(mode, families)
     if target == "guardline.toml":
         return Plan(path, old, body)
-    assert old is not None
+    if old is None:
+        raise ConfigError(f"{path}: the existing file was not read")
     kept = _remove_own_table(old).rstrip("\n")
     new = (kept + "\n\n" if kept else "") + "[tool.guardline]\n" + body
     try:

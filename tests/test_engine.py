@@ -232,7 +232,7 @@ def test_reading_commands_are_not_publishing() -> None:
     ("program", "args", "expected"),
     [
         ("git", ("commit", "-m", "x"), True),
-        ("git", ("-C", "/tmp/r", "tag", "-m", "x"), True),
+        ("git", ("-C", "/tmp/r", "tag", "-m", "x"), True),  # noqa: S108
         ("git", ("status",), False),
         ("gh", ("pr", "create"), True),
         ("gh", ("pr", "view"), False),

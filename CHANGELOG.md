@@ -34,6 +34,15 @@ All notable changes to this project are documented in this file. The format foll
 - Documentation for both commands: a step in the getting started tutorial, a how-to guide on choosing block or report mode, and entries in the cli and python api references.
 - A documented list of open gaps in `docs/explanation/security-model.md`, each pinned by a test.
 - `guardline scan --no-stdin`, which treats `-` as a file name and never reads standard input.
+- A banner, `.github/guardline-banner.svg`, made by `scripts/make-banner.py`, and a README that follows the Stratarc skeleton with absolute links.
+- A release workflow with separate build, test and publish jobs. It publishes to PyPI through trusted publishing in an approval gated `pypi` environment, installs only hash pinned tools from `requirements/`, checks that the tag matches the version and that the tagged commit is on `main`, tests the wheel it built, and writes checksums to the job summary. [Cut a Release](docs/how-to-guides/cut-a-release.md) describes the one-time PyPI and GitHub setup.
+- Package metadata for PyPI: keywords, classifiers, project URLs, `Typing :: Typed`, a bounded `hatchling` requirement, and an sdist whose include patterns are anchored.
+- Tests for the documentation, the published tree, the release workflow and the lock files. Tests that need repository only files carry the `repo_only` marker and skip themselves in the source distribution.
+
+### Changed
+
+- The optional dependencies are `test` (`pytest>=9.0.3`, `pytest-cov>=7`) and `lint` (`ruff`, `mypy`). Install both with `pip install -e '.[test,lint]'`.
+- Ruff checks the `S` and `RUF` rule sets as well.
 
 ### Security
 

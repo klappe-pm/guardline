@@ -29,6 +29,10 @@ This page maps the repository: each module of the `guardline` package and each t
 | `.pre-commit-hooks.yaml` | the hook ids other repositories consume |
 | `pyproject.toml` | build, dependencies, console script, pytest, ruff and mypy configuration |
 | `docs/` | the documentation, in one tree arranged by Diátaxis quadrant |
+| `scripts/make-banner.py` | writes `.github/guardline-banner.svg`; needs `fonttools`, which the package does not |
+| `requirements/` | the hash pinned build and test tools the release workflow installs, with the small `.in` files they are compiled from |
+| `.github/` | the issue and pull request templates, the banner and the release workflow |
+| `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `SUPPORT.md` | the community files |
 | `tests/` | the test suite |
 
 ## Tests
@@ -47,4 +51,10 @@ This page maps the repository: each module of the `guardline` package and each t
 | `tests/test_diff.py` | the diff scan |
 | `tests/test_consistency.py` | one verdict from every entry point |
 | `tests/test_security.py` | leaks, timing, fail closed, known bypasses |
-| `tests/test_docs.py` | documentation conventions |
+| `tests/test_docs.py` | documentation and repository conventions |
+| `tests/test_docs_content.py` | the documentation matches the rules and the real output |
+| `tests/test_self_scan.py` | Guardline finds nothing in its own repository |
+| `tests/test_no_personal_terms.py` | no private term in a tracked file |
+| `tests/test_release_workflow.py` | the release workflow, the lock files and the packaging metadata |
+| `tests/test_review_fixes.py` | regressions from the hardening reviews |
+| `tests/conftest.py` | the `repo_only` marker |

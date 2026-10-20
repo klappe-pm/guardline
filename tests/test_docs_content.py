@@ -119,7 +119,7 @@ def test_documented_getting_started_output_is_real() -> None:
         "fix: parser\n\nCo-Authored-By: Codex <dev@example.com>\n", "m.txt"
     )
     assert len(finding) == 1
-    assert finding[0].format_text().replace("m.txt", "/tmp/guardline-tour/message.txt") in text
+    assert finding[0].format_text().replace("m.txt", "/tmp/guardline-tour/message.txt") in text  # noqa: S108
 
 
 def test_documented_config_show_output_is_real(
@@ -133,6 +133,6 @@ def test_documented_config_show_output_is_real(
         'mode = "block"\nfamilies = ["attribution", "token"]\n', encoding="utf-8"
     )
     assert main(["config", "show"]) == 0
-    real = capsys.readouterr().out.replace(str(tmp_path), "/tmp/guardline-tour/project")
+    real = capsys.readouterr().out.replace(str(tmp_path), "/tmp/guardline-tour/project")  # noqa: S108
     text = (ROOT / "docs/tutorials/getting-started.md").read_text(encoding="utf-8")
     assert real in text

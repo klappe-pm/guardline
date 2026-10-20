@@ -72,7 +72,7 @@ def call_within(seconds: float, call: Callable[[], T]) -> T:
     def target() -> None:
         try:
             outcome["value"] = call()
-        except BaseException as error:  # noqa: BLE001 - handed back to the test thread
+        except BaseException as error:
             outcome["error"] = error
 
     thread = threading.Thread(target=target, daemon=True)

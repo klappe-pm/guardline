@@ -289,7 +289,7 @@ def _cmd_hook(args: argparse.Namespace, out: IO[str], err: IO[str]) -> int:
     except GuardlineError as error:
         message = f"configuration or rule file error ({error.__class__.__name__})"
         result = startup_failure(message, args.mode or "block", args.deny_with)
-    except Exception as error:  # noqa: BLE001 - a hook that crashes must not fail open
+    except Exception as error:
         message = f"unexpected {error.__class__.__name__}"
         result = startup_failure(message, args.mode or "block", args.deny_with)
     out.write(result.stdout)
@@ -402,7 +402,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except GuardlineError as error:
         err.write(f"guardline: error: {error}\n")
         return 2
-    except Exception as error:  # noqa: BLE001 - report, never traceback with input in it
+    except Exception as error:
         err.write(f"guardline: internal error ({error.__class__.__name__})\n")
         return 2
 

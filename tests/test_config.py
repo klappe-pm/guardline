@@ -55,7 +55,7 @@ def test_pyproject_tool_table(tmp_path: Path) -> None:
 def test_pyproject_without_a_table_is_an_error_when_named(tmp_path: Path) -> None:
     file = tmp_path / "pyproject.toml"
     file.write_text("[project]\nname = 'x'\n", encoding="utf-8")
-    with pytest.raises(ConfigError, match="no .tool.guardline. table"):
+    with pytest.raises(ConfigError, match=r"no .tool.guardline. table"):
         load_config_file(file)
 
 

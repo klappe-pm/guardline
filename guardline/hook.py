@@ -104,7 +104,7 @@ def run_hook(
         findings = scanner.scan_payload(payload)
     except json.JSONDecodeError:
         return _failure("the hook payload is not valid JSON", mode, event, deny_with)
-    except Exception as error:  # noqa: BLE001 - a scanner bug must not fail open
+    except Exception as error:
         return _failure(f"the scanner failed ({error.__class__.__name__})", mode, event, deny_with)
     if not findings:
         return HookResult(0)

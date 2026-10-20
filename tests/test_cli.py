@@ -471,8 +471,8 @@ def test_the_file_hook_does_not_filter_on_the_text_tag() -> None:
 
 def all_parsers(parser: argparse.ArgumentParser) -> list[argparse.ArgumentParser]:
     found = [parser]
-    for action in parser._actions:  # noqa: SLF001 - the only way to reach subparsers
-        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
             for child in action.choices.values():
                 found.extend(all_parsers(child))
     return found

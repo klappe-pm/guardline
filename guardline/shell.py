@@ -345,7 +345,7 @@ def _heredocs(line: str) -> list[tuple[str, bool]]:
     )
     found: list[tuple[str, bool]] = []
     for i, token in enumerate(tokens[:-1]):
-        if token == "<<" and not _is_operator(tokens[i + 1]):
+        if token == "<<" and not _is_operator(tokens[i + 1]):  # noqa: S105 - a shell operator
             delimiter = tokens[i + 1].lstrip("-")
             if delimiter:
                 found.append((delimiter, receives))
@@ -421,7 +421,7 @@ def _segments(
                     argv.pop()
                 if i + 1 < len(tokens) and not _is_operator(tokens[i + 1]):
                     words.append(tokens[i + 1])
-                    if token == "<<<":
+                    if token == "<<<":  # noqa: S105 - a shell operator
                         herestrings.append(tokens[i + 1])
                     i += 1
                 i += 1

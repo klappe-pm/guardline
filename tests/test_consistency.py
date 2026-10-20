@@ -78,7 +78,11 @@ def test_the_diff_scan_agrees_with_the_file_scan(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def git(*args: str) -> None:
-        subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+        subprocess.run(  # noqa: S603 - fixed argument list, no shell
+            ["git", "-C", str(tmp_path), *args],  # noqa: S607
+            check=True,
+            capture_output=True,
+        )
 
     git("init", "-q", "-b", "main")
     git("config", "user.name", "T")
