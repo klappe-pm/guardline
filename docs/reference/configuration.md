@@ -13,12 +13,14 @@ An unknown key is an error, so a misspelled key cannot silently do nothing.
 | key | type | default | meaning |
 | --- | --- | --- | --- |
 | `mode` | `"report"` or `"block"` | `"block"` | `report` prints findings and exits 0, `block` exits 1 on a finding. The `--mode` option wins. |
-| `disable` | list of strings | `[]` | rule ids to turn off. An id that names no loaded rule is an error. |
+| `disable` | list of strings | `[]` | rule ids to turn off. An id that names no loaded rule is an error, and so is a list that turns off every rule. |
 | `rule_files` | list of strings | `[]` | extra rule files; relative paths are resolved against the configuration file's directory and must stay inside it, so a configuration cannot pull in a rule file from elsewhere; a path that leaves the directory is an error. An id that a built-in rule or another file already uses is an error. |
-| `families` | list of strings | all | run only rules of these families. The `--family` option wins. |
+| `families` | list of strings | all | run only rules of these families. The `--family` option wins. An empty list is an error, because it would leave no rule to run. |
 | `exclude` | list of strings | `[]` | glob patterns of paths the file scan skips, matched against the whole path and the file name. |
 | `max_text_chars` | positive integer | `1048576` | longest text, in characters, that one scan accepts. |
 | `max_command_chars` | positive integer | `65536` | longest shell command, in characters, that one scan accepts. |
+
+A configuration that leaves no active rule is an error (`the configuration leaves no active rules`), whether it comes from an empty `families` list or from a `disable` list that names every rule. Block mode would otherwise allow everything.
 
 Input over a limit is not scanned. It yields one `guardline-input-too-large` finding, so oversize input is reported and never passes silently.
 

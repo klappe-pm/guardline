@@ -38,4 +38,5 @@ All notable changes to this project are documented in this file. The format foll
 ### security
 
 - A staged file named like an option (`--mode=report`, `--help`, `--family=env-dump`) or named `-` can no longer change a pre-commit scan or turn it into a read of standard input: the hook entries end their options with `--` and pass `--no-stdin`, the `guardline init` report mode snippet is `args: [--mode, report, --]`, and every parser refuses abbreviated option names.
+- A configuration that leaves no active rule is an error: an empty `families` list is refused when the file is read, and `build_scanner` refuses a rule set that is empty after `disable`. The hook denies in block mode instead of allowing every call.
 - The file hook uses `types: [file]` instead of `types: [text]`, so a file that pre-commit tags as binary, such as one with a NUL byte or a `.pdf` name, is still scanned.

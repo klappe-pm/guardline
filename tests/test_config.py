@@ -176,3 +176,38 @@ def test_family_from_a_custom_rule_file_is_known(tmp_path: Path) -> None:
 def test_disabling_the_trailer_rules_lets_the_trailer_through() -> None:
     config = Config(disable=("attribution-co-author-trailer", "attribution-vendor-noreply-address"))
     assert build_scanner(config).scan_text(TRAILER) == []
+
+
+# a configuration must leave at least one active rule ---------------------------------------
+
+
+def test_an_empty_families_list_is_refused_when_the_table_is_read(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="families"):
+        config_from_table({"families": []}, tmp_path / "guardline.toml")
+
+
+def test_an_empty_families_value_is_refused_when_the_scanner_is_built() -> None:
+    with pytest.raises(ConfigError, match="no active rules"):
+        build_scanner(Config(families=()))
+
+
+def test_disabling_every_rule_is_refused() -> None:
+    every_rule = tuple(rule.id for rule in builtin_rules())
+    with pytest.raises(ConfigError, match="no active rules"):
+        build_scanner(Config(disable=every_rule))
+    with pytest.raises(ConfigError, match="no active rules"):
+        build_scanner(Config(), extra_disable=every_rule)
+
+
+def test_disabling_one_whole_family_leaves_the_others_active() -> None:
+    token_rules = tuple(rule.id for rule in builtin_rules() if rule.family == "token")
+    scanner = build_scanner(Config(disable=token_rules))
+    assert scanner.rules
+    assert "token" not in {rule.family for rule in scanner.rules}
+
+
+def test_a_config_file_with_empty_families_is_a_config_error(tmp_path: Path) -> None:
+    file = tmp_path / "guardline.toml"
+    file.write_text("families = []\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="families"):
+        load_config_file(file)

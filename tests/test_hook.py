@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import json
+from pathlib import Path
 
 import pytest
 
 from guardline import Scanner
+from guardline.cli import main
 from guardline.hook import HookResult, deny_reason, run_hook, startup_failure
 from tests.helpers import assert_absent
 from tests.samples import FAKE_TOKEN, TRAILER
@@ -102,3 +105,44 @@ def test_deny_reason_lists_ten_findings_and_counts_the_rest() -> None:
 def test_text_fields_are_judged(field: str) -> None:
     result = run_hook(payload(**{field: TRAILER}), Scanner())
     assert "attribution-co-author-trailer" in result.stdout
+
+
+# the hook through the command line ---------------------------------------------------------
+
+
+def run_hook_command(
+    argv: list[str],
+    stdin: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[int, str]:
+    monkeypatch.setattr("sys.stdin", io.StringIO(stdin))
+    code = main(["hook", *argv])
+    return code, capsys.readouterr().out
+
+
+def test_the_hook_denies_when_its_config_leaves_no_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = tmp_path / "guardline.toml"
+    config.write_text('mode = "block"\nfamilies = []\n', encoding="utf-8")
+    code, out = run_hook_command(
+        ["--config", str(config)], payload(command=f"echo {FAKE_TOKEN}"), monkeypatch, capsys
+    )
+    assert code == 0
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "ConfigError" in out
+
+
+def test_the_hook_denies_when_its_config_disables_every_rule(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from guardline import builtin_rules
+
+    ids = ", ".join(f'"{rule.id}"' for rule in builtin_rules())
+    config = tmp_path / "guardline.toml"
+    config.write_text(f'mode = "block"\ndisable = [{ids}]\n', encoding="utf-8")
+    _, out = run_hook_command(
+        ["--config", str(config)], payload(command=f"echo {FAKE_TOKEN}"), monkeypatch, capsys
+    )
+    assert json.loads(out)["hookSpecificOutput"]["permissionDecision"] == "deny"

@@ -40,6 +40,10 @@ By design. The hook reads a configuration file only when its command names one w
 
 `guardline: error: unknown rule id(s) in disable: ...` means the id is misspelled or belongs to a rule file that was not loaded. Run `guardline rules list` and copy the id.
 
+## the-configuration-leaves-no-active-rules
+
+`guardline: error: the configuration leaves no active rules` means `families` is empty, or `disable` names every rule, so there would be nothing to run. List at least one family, or disable fewer rules. The hook treats it like any configuration error and blocks the call in block mode.
+
 ## configuration-errors
 
 `unknown key(s)` means the file uses a key guardline does not read. `allow_fenced_attribution` is not a key on purpose. See [configuration](../reference/configuration.md). In the hook, a configuration error blocks the call in block mode, so fix the file.

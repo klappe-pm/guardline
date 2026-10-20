@@ -85,7 +85,8 @@ def config_from_table(table: dict[str, Any], origin: Path) -> Config:
     """Validate a configuration table and resolve it.
 
     Raises:
-        ConfigError: the table has an unknown key or a value of the wrong type.
+        ConfigError: the table has an unknown key, a value of the wrong type, or an
+            empty ``families`` list, which would leave no rule to run.
     """
     unknown = sorted(set(table) - _KEYS)
     if unknown:
@@ -94,6 +95,8 @@ def config_from_table(table: dict[str, Any], origin: Path) -> Config:
     if mode is not None and mode not in MODES:
         raise ConfigError(f"{origin}: mode must be one of {', '.join(MODES)}")
     families = _string_list(table, "families", origin) if "families" in table else None
+    if families == ():
+        raise ConfigError(f"{origin}: families must name at least one family")
     return Config(
         mode=mode,
         disable=_string_list(table, "disable", origin),
@@ -192,12 +195,17 @@ def build_scanner(
     """Build a ``Scanner`` from a configuration and command line overrides.
 
     Raises:
-        ConfigError: a chosen family matches no active rule. A misspelled family would
-            otherwise leave the scanner with no rules, so block mode would pass everything.
+        ConfigError: a chosen family matches no active rule, or the configuration leaves
+            no active rule at all. Either would give the scanner no rules, so block mode
+            would pass everything.
     """
     rules = build_ruleset(config, extra_rule_files, extra_disable)
+    if not rules:
+        raise ConfigError("the configuration leaves no active rules")
     chosen = families if families else config.families
     if chosen is not None:
+        if not chosen:
+            raise ConfigError("the configuration leaves no active rules")
         present = {rule.family for rule in rules}
         unknown = sorted(set(chosen) - present)
         if unknown:

@@ -48,7 +48,7 @@ A pre-commit hook receives file names the author chose, and a name can look like
 
 ## how-the-hook-fails
 
-In block mode the hook denies when it cannot judge: no payload, a payload that is not JSON, a configuration or rule file error, a scanner exception, input over the size limit, a command that hit a parser limit, and a tool input that nests deeper than 16 levels or holds more than 2000 strings. Invalid bytes on standard input are replaced and the payload is still judged. It never uses exit status 1 for a block, because Claude Code treats that as a non-blocking error. In report mode every one of those only prints. Deny messages name rule ids, positions and exception class names; they never contain the input, a matched value, an exception message, or a key from a rule file.
+In block mode the hook denies when it cannot judge: no payload, a payload that is not JSON, a configuration or rule file error (including a configuration that leaves no active rule, such as `families = []` or a `disable` list that names every rule), a scanner exception, input over the size limit, a command that hit a parser limit, and a tool input that nests deeper than 16 levels or holds more than 2000 strings. Invalid bytes on standard input are replaced and the payload is still judged. It never uses exit status 1 for a block, because Claude Code treats that as a non-blocking error. In report mode every one of those only prints. Deny messages name rule ids, positions and exception class names; they never contain the input, a matched value, an exception message, or a key from a rule file.
 
 ## regular-expression-denial-of-service
 
