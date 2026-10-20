@@ -215,3 +215,30 @@ def test_a_shift_or_default_inside_an_expansion_opens_no_heredoc(command: str) -
 
 def test_a_real_heredoc_after_an_expansion_on_another_line_stays_data() -> None:
     assert Scanner().scan_command("echo ${HOME}\ncat <<EOF\nprintenv\nEOF") == []
+
+
+# a shell named on another line still reads the heredoc ------------------------------------
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cat <<EOF |\nprintenv\nEOF\nbash",
+        "cat <<EOF |&\nprintenv\nEOF\nsudo bash -s",
+        "bash \\\n<<EOF\nprintenv\nEOF",
+    ],
+)
+def test_a_heredoc_fed_to_a_shell_named_on_another_line_is_judged(command: str) -> None:
+    assert "env-dump-printenv" in {f.rule_id for f in Scanner().scan_command(command)}
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "cat <<EOF |\nprintenv\nEOF\ngrep x",
+        "cat \\\n<<EOF\nprintenv\nEOF",
+        "cat <<EOF\nprintenv\nEOF\nbash",
+    ],
+)
+def test_a_heredoc_that_no_shell_reads_stays_data(command: str) -> None:
+    assert Scanner().scan_command(command) == []

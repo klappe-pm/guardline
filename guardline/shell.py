@@ -344,6 +344,14 @@ def _is_operator(token: str) -> bool:
 # heredocs, segments, substitutions ----------------------------------------------
 
 
+def _reads_tokens_as_shell(tokens: list[str]) -> bool:
+    return any(
+        os.path.basename(token).lower() in _HEREDOC_RECEIVERS
+        for token in tokens
+        if not _is_operator(token)
+    )
+
+
 def _heredocs(line: str) -> list[tuple[str, bool]]:
     """Return (delimiter, body_is_commands) for each heredoc operator on one line."""
     if "((" in line or "${" in line or "$[" in line:
@@ -352,11 +360,7 @@ def _heredocs(line: str) -> list[tuple[str, bool]]:
         tokens = _lex(line)
     except ValueError:
         return []
-    receives = any(
-        os.path.basename(token).lower() in _HEREDOC_RECEIVERS
-        for token in tokens
-        if not _is_operator(token)
-    )
+    receives = _reads_tokens_as_shell(tokens)
     found: list[tuple[str, bool]] = []
     for i, token in enumerate(tokens[:-1]):
         if token == "<<" and _is_operator(token) and not _is_operator(tokens[i + 1]):  # noqa: S105
@@ -366,11 +370,41 @@ def _heredocs(line: str) -> list[tuple[str, bool]]:
     return found
 
 
+def _ends_in_pipe(line: str) -> bool:
+    """Whether a logical line ends with ``|`` or ``|&``, so its output feeds the next command."""
+    stripped = line.rstrip()
+    return stripped.endswith(("|", "|&")) and not stripped.endswith(("||", "\\|"))
+
+
+def _reads_as_shell(line: str) -> bool:
+    """Whether a line names a program that runs what it is fed as commands."""
+    try:
+        return _reads_tokens_as_shell(_lex(line))
+    except ValueError:
+        return False
+
+
+def _piped_into_shell(lines: list[str], start: int, delimiters: list[str]) -> bool:
+    """Whether the command after the bodies that follow ``start`` is a shell.
+
+    ``delimiters`` are those of the heredocs opened on a line that ends in a pipe, so
+    the text they hold is fed through to the first command after the last body.
+    """
+    index = start + 1
+    for delimiter in delimiters:
+        while index < len(lines) and lines[index].strip() != delimiter:
+            index += 1
+        index += 1
+    return index < len(lines) and _reads_as_shell(lines[index])
+
+
 def _blank_heredoc_bodies(text: str, bodies: list[tuple[int, str]]) -> str:
     """Blank heredoc bodies that are data, keep the ones that run as commands.
 
     A data body is recorded in ``bodies`` as (offset, text). A heredoc whose
-    delimiter never arrives was a misreading, so the text is kept whole.
+    delimiter never arrives was a misreading, so the text is kept whole. A line
+    continued with a backslash is read with the line it continues, and the body of a
+    heredoc whose line ends in a pipe runs as commands when a shell is the next command.
     """
     if "<<" not in text:
         return text
@@ -380,7 +414,9 @@ def _blank_heredoc_bodies(text: str, bodies: list[tuple[int, str]]) -> str:
     position = 0
     current_start = 0
     current: list[str] = []
-    for line in text.split("\n"):
+    logical = ""
+    lines = text.split("\n")
+    for number, line in enumerate(lines):
         if pending:
             delimiter, keep = pending[0]
             if line.strip() == delimiter:
@@ -397,7 +433,19 @@ def _blank_heredoc_bodies(text: str, bodies: list[tuple[int, str]]) -> str:
                 out.append(line if keep else " " * len(line))
         else:
             out.append(line)
-            pending.extend(_heredocs(line))
+            joined = logical + line
+            if len(joined) - len(joined.rstrip("\\")) & 1:
+                logical = joined[:-1] + " "
+            else:
+                logical = ""
+                opened = _heredocs(joined)
+                if (
+                    opened
+                    and _ends_in_pipe(joined)
+                    and _piped_into_shell(lines, number, [d for d, _ in opened])
+                ):
+                    opened = [(d, True) for d, _ in opened]
+                pending.extend(opened)
         position += len(line) + 1
     if pending:
         return text
