@@ -1,0 +1,30 @@
+name: Bug report
+description: Guardline did something other than what the documentation says.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, what you expected and what happened instead. For a false positive or a missed detection, give a synthetic input that shows it and the rule id. Never paste a real credential.
+      placeholder: "I ran `guardline scan` and expected ..., but ..."
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste the command output as text. Remove anything that looks like a credential.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Guardline version
+      description: The output of `guardline --version`.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and version, and the Python version.
