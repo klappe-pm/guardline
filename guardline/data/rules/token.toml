@@ -1,0 +1,179 @@
+# Token-shaped value rules, schema version 1.
+#
+# A finding from this family reports the rule id and the position of the match
+# and never the matched text. Prefix patterns start at a token boundary and cap
+# every run, so a hostile input cannot make a scan quadratic. Examples are
+# synthetic and use \u escapes for the first character of each prefix so that
+# this file does not match its own rules.
+
+schema_version = 1
+
+[[rule]]
+id = "token-private-key-block"
+family = "token"
+description = "The header line of a PEM or PGP private key block."
+pattern = '-----BEGIN [A-Z ]{0,40}PRIVATE KEY(?: BLOCK)?-----'
+example_fires = "\u002d----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAKj34GkxFhD90vcN"
+example_clean = "\u002d----BEGIN CERTIFICATE-----\nMIIBOgIBAAJBAKj34GkxFhD90vcN"
+
+[[rule]]
+id = "token-aws-access-key-id"
+family = "token"
+description = "An AWS access key id (AKIA, ASIA or ABIA prefix)."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])(?:AKIA|ASIA|ABIA)[0-9A-Z]{16}'
+example_fires = "aws_key = \u0041KIAIOSFODNN7EXAMPLE"
+example_clean = "the key id prefix is \u0041KIA followed by sixteen characters"
+
+[[rule]]
+id = "token-github-fine-grained-pat"
+family = "token"
+description = "A GitHub fine-grained personal access token."
+pattern = '(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{20,255}'
+example_fires = "\u0067ithub_pat_11ABCDEFG0abcdefghijklmnopqrstuvwxyz"
+example_clean = "the \u0067ithub_pat_ prefix marks a fine-grained token"
+
+[[rule]]
+id = "token-github-token"
+family = "token"
+description = "A GitHub personal, OAuth, user, server or refresh token."
+pattern = '(?<![A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,255}'
+example_fires = "\u0067hp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef0123"
+example_clean = "the \u0067hp_ prefix marks a personal token"
+
+[[rule]]
+id = "token-slack-token"
+family = "token"
+description = "A Slack bot, app, user or refresh token."
+pattern = '(?<![A-Za-z0-9])xox[baprs]-[A-Za-z0-9-]{10,255}'
+example_fires = "\u0078oxb-123456789012-abcdefghijklmnop"
+example_clean = "the \u0078oxb- prefix marks a bot token"
+
+[[rule]]
+id = "token-sk-style-key"
+family = "token"
+description = "An sk- style API key (several providers use this prefix)."
+pattern = '(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{20,255}'
+example_fires = "OPENAI=\u0073k-abcdefghijklmnopqrstuvwxyz012345"
+example_clean = "plan the risk-and-cost-of-the-wrong-decision review"
+
+[[rule]]
+id = "token-google-api-key"
+family = "token"
+description = "A Google API key."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{20,128}'
+example_fires = "key: \u0041Iza0123456789abcdefghijklmnopqrstuvwxy"
+example_clean = "keys begin with \u0041Iza and then more characters"
+
+[[rule]]
+id = "token-stripe-live-key"
+family = "token"
+description = "A Stripe live secret or restricted key."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])[sr]k_live_[A-Za-z0-9]{16,128}'
+example_fires = "\u0073k_live_0123456789abcdefghijklmnop"
+example_clean = "the \u0073k_live_ prefix marks a live key"
+
+[[rule]]
+id = "token-gitlab-pat"
+family = "token"
+description = "A GitLab personal access token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])glpat-[A-Za-z0-9_-]{20,64}'
+example_fires = "\u0067lpat-0123456789abcdefghij"
+example_clean = "the \u0067lpat- prefix marks a GitLab token"
+
+[[rule]]
+id = "token-npm-token"
+family = "token"
+description = "An npm access token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])npm_[A-Za-z0-9]{36}'
+example_fires = "\u006epm_0123456789abcdefghijklmnopqrstuvwxyz"
+example_clean = "run \u006epm_config to see settings"
+
+[[rule]]
+id = "token-pypi-token"
+family = "token"
+description = "A PyPI upload token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])pypi-AgEIcHlwaS5vcmc[A-Za-z0-9_-]{50,1024}'
+example_fires = "\u0070ypi-AgEIcHlwaS5vcmcCJDEyMzQ1Njc4LWFiY2QtZWZnaC1pamtsLW1ub3BxcnN0dXZ3eHl6AAIqWzMsIng"
+example_clean = "the \u0070ypi- prefix marks an upload token"
+
+[[rule]]
+id = "token-azure-storage-account-key"
+family = "token"
+description = "An Azure storage connection string account key."
+pattern = '(?<![A-Za-z0-9])AccountKey=[A-Za-z0-9+/]{40,100}={0,2}'
+example_fires = "\u0041ccount\u004bey=abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ=="
+example_clean = "AccountName=example"
+
+[[rule]]
+id = "token-huggingface-token"
+family = "token"
+description = "A Hugging Face user access token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])hf_[A-Za-z0-9]{34}'
+example_fires = "\u0068f_aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3x"
+example_clean = "the \u0068f_ prefix marks a Hugging Face token"
+
+[[rule]]
+id = "token-slack-app-token"
+family = "token"
+description = "A Slack app level token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])xapp-[0-9]-[A-Za-z0-9]{6,20}-[0-9]{8,16}-[A-Za-z0-9]{20,128}'
+example_fires = "\u0078app-1-A0123456789-1234567890123-abcdef0123456789abcdef0123456789"
+example_clean = "the \u0078app- prefix marks an app level token"
+
+[[rule]]
+id = "token-sendgrid-api-key"
+family = "token"
+description = "A SendGrid API key."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}'
+example_fires = "\u0053G.abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+example_clean = "the \u0053G. prefix marks a SendGrid key"
+
+[[rule]]
+id = "token-jwt"
+family = "token"
+description = "A JSON web token: three dot separated base64url segments, the first starting with eyJ."
+pattern = '(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}\.[A-Za-z0-9_-]{5,4096}'
+example_fires = "jwt=\u0065yJhbGciOiJIUzI1NiJ9.\u0065yJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlYWJj"
+example_clean = "\u0065yJ is how base64 encoded json starts"
+
+[[rule]]
+id = "token-bearer-token"
+family = "token"
+description = "A Bearer credential of twenty or more token characters."
+pattern = '\bBearer\s{1,8}[A-Za-z0-9._~+/=-]{20,512}'
+example_fires = "Authorization: \u0042earer abcdefghijklmnopqrstuvwxyz012345"
+example_clean = "the header uses the \u0042earer scheme"
+
+[[rule]]
+id = "token-generic-assignment"
+family = "token"
+description = "A key, token, secret or password name assigned a literal of sixteen or more token characters."
+pattern = '''(?:KEY|TOKEN|SECRET|PASSWORD)[A-Za-z0-9_]{0,40}["']?[ \t]{0,8}[=:][ \t]{0,8}(?:["'][A-Za-z0-9_./+=-]{16,256}+["']|[A-Za-z0-9_./+=-]{16,128}+(?!\())'''
+unless = '''[=:][ \t]{0,8}(?://|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*){1,8}[]});,'"\s]?$)'''
+example_fires = "api_key = \"abcdefghijklmnop12345678\""
+example_clean = "api_key = settings.env.api_key"
+
+[[rule]]
+id = "token-hex-run-near-keyword"
+family = "token"
+description = "A hexadecimal run of thirty-two or more characters directly after the word key, token, secret or password."
+pattern = '''(?:key|token|secret|password)["']?[ \t]{0,3}[:=]?[ \t]{0,3}["']?[0-9a-f]{32,512}'''
+example_fires = "\u0073ecret 0123456789abcdef0123456789abcdef"
+example_clean = "the key is short: 0123abcd"
+
+[[rule]]
+id = "token-base64-run-near-keyword"
+family = "token"
+description = "A mixed case base64 run of forty or more characters assigned to a name ending in key, token or secret."
+pattern = '''(?:key|token|secret)["']?[ \t]{0,3}[:=][ \t]{0,3}["']?(?=[A-Za-z0-9+/]{0,64}[0-9])(?=[A-Za-z0-9+/]{0,64}[a-z])(?=[A-Za-z0-9+/]{0,64}[A-Z])[A-Za-z0-9+/]{40,1024}={0,2}'''
+example_fires = "token = \"Zm9vYmFyQmF6MTIzNDU2Nzg5MEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFla\""
+example_clean = "token = \"placeholder\""

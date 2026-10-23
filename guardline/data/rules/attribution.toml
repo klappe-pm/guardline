@@ -1,0 +1,81 @@
+# Agent attribution rules, schema version 1.
+#
+# Every rule below is matched line by line against authored text: a commit
+# message, a pull request body, a file a tool is about to write. Patterns avoid
+# nested quantifiers and bound every repeat so they stay linear on untrusted
+# text. Examples use \u escapes for the first letter of a vendor word so that
+# this file does not match its own rules.
+
+schema_version = 1
+
+[[rule]]
+id = "attribution-co-author-trailer"
+family = "attribution"
+description = "A Co-Authored-By trailer whose name part names a coding agent or its vendor."
+pattern = '''(?:^|["'`])[ \t>*_-]{0,16}Co[- ]?Authored[- ]?By[ \t]*:[^\n<"'`]{0,200}?["'`]?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+example_fires = "fix: parser\n\nCo-Authored-By: \u0043laude <noreply@example.com>"
+example_clean = "fix: parser\n\nCo-Authored-By: Dana Lee <dana@example.com>"
+
+[[rule]]
+id = "attribution-assisted-by-trailer"
+family = "attribution"
+description = "An Assisted-By or Generated-By trailer whose name part names a coding agent or its vendor."
+pattern = '''(?:^|["'`])[ \t>*_-]{0,16}(?:Assisted|Generated)[- ]?By[ \t]*:[^\n<"'`]{0,200}?["'`]?(?<![@.])\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+example_fires = "Assisted-By: \u0043odex CLI"
+example_clean = "Assisted-By: Dana Lee"
+
+[[rule]]
+id = "attribution-generated-with-footer"
+family = "attribution"
+description = "A generated with, created by or written by footer or byline that names a coding agent."
+pattern = '''(?:^|(?<=[.!?,;])[ \t]{1,16}|[(\["'`|])[^A-Za-z0-9\n]{0,8}+(?:Generated|Created|Authored|Written|Built)\s{1,16}(?:with|by)\b.{0,40}?\b(?:Claude|Anthropic|Codex|OpenAI|ChatGPT|GPT-[0-9]|Copilot|Cursor|Devin|Gemini|Aider|Windsurf|Grok|Kiro|Cline|Google Jules|Jules (?:agent|bot|AI)|AI assistant|AI agent|LLM)\b'''
+example_fires = "Fix the parser. Generated with \u0043laude Code"
+example_clean = "fix: parse config files created by \u0043odex CLI"
+
+[[rule]]
+id = "attribution-vendor-noreply-address"
+family = "attribution"
+description = "A vendor noreply address, as used for an agent author identity."
+pattern = 'noreply@(?:anthropic|openai)\.com'
+example_fires = "Signed-off-by: Bot <noreply@\u0061nthropic.com>"
+example_clean = "Contact noreply@example.com for questions."
+
+[[rule]]
+id = "attribution-vendor-bot-noreply-address"
+family = "attribution"
+description = "A GitHub bot noreply address for a coding agent account."
+pattern = '\b[0-9]{1,12}\+(?:claude|copilot|codex|cursor|devin)[a-z0-9-]{0,30}\[bot\]@users\.noreply\.github\.com'
+example_fires = "Author: 12345+\u0063opilot-swe-agent[bot]@users.noreply.github.com"
+example_clean = "Author: 12345+dependabot[bot]@users.noreply.github.com"
+
+[[rule]]
+id = "attribution-session-permalink"
+family = "attribution"
+description = "A link back to an agent chat or session transcript."
+pattern = '(?:claude\.(?:ai|com)/(?:code|share|chat)|chatgpt\.com/(?:share|c)|chat\.openai\.com/(?:share|c))/[A-Za-z0-9_-]{4,128}'
+example_fires = "see https://\u0063laude.ai/code/session_01AbCdEf"
+example_clean = "see https://example.com/code/session_01AbCdEf"
+
+[[rule]]
+id = "attribution-session-trailer"
+family = "attribution"
+description = "A session trailer line that carries an agent session reference."
+pattern = '''(?:^|["'`])[ \t>*_-]{0,16}(?:Claude|Codex|Agent)[- ]Session[ \t]*:'''
+example_fires = "fix: parser\n\n\u0043laude-Session: abc123"
+example_clean = "fix: parser\n\nReview-Session: abc123"
+
+[[rule]]
+id = "attribution-product-link"
+family = "attribution"
+description = "A link whose text names an agent product and whose host is the vendor or the vendor's own repository landing page."
+pattern = '''\[[^][\n]{0,200}(?:Claude Code|Claude|Codex|Copilot)[^][\n]{0,200}\]\(https?://(?:[^/@?#)\s\]\[]{0,64}@)?(?:(?:[a-z0-9-]{1,63}\.){0,8}(?:anthropic|claude|openai)\.[a-z]{2,24}(?=[/:?#)])|(?:www\.)?github\.com(?=[/)])(?!/[^/)\s]+/[^/)\s]+/(?:issues|pull|pulls|releases|blob|tree|wiki|discussions|commit|compare|docs)/)[^][)\s]{0,300}(?:anthropic|claude|openai|/features/copilot))[^][)\s]{0,300}\)'''
+example_fires = "[\u0043laude Code](https://\u0063laude.ai/code)"
+example_clean = "[News about \u0043laude models](https://www.example.com/news/\u0063laude-models)"
+
+[[rule]]
+id = "attribution-robot-byline"
+family = "attribution"
+description = "A robot emoji used as an authorship mark."
+pattern = '\U0001F916'
+example_fires = "\U0001F916 built this"
+example_clean = "robot vacuum maintenance notes"
