@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest a capability.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: The need
+      description: What you are trying to do and why it cannot be done today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: An idea for how it could work
+      description: Optional. Every rule is data, so a rule of your own can be loaded from a rule file; say if that does not cover your case.

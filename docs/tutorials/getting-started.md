@@ -1,0 +1,125 @@
+# Getting Started
+
+This tutorial takes a new user from an empty virtual environment to a working setup. You install the command, scan a commit message, judge a tool call the way an agent hook does, choose your settings with `guardline init`, and turn one rule off with a configuration file. It follows one path and explains only what that path needs. For the full command surface see the [cli reference](../reference/cli.md), and for every configuration key see [configuration](../reference/configuration.md).
+
+## What You Need
+
+- Python 3.11 or newer.
+- `pip` and the `venv` module.
+- A scratch directory you can write to. The examples use `/tmp/guardline-tour`.
+
+## Install the Command
+
+Create a virtual environment and install Guardline into it. Until the package reaches PyPI, install from the repository:
+
+```bash
+python3 -m venv /tmp/guardline-tour/venv && /tmp/guardline-tour/venv/bin/pip install git+https://github.com/klappe-pm/guardline
+```
+
+Confirm the command runs:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline --version
+```
+
+The [install guide](../how-to-guides/install.md) covers other install methods and upgrading.
+
+## Scan a File
+
+Write a commit message that carries a Co-Authored-By trailer naming a coding agent. The trailer rule recognises the agent and vendor names listed in the [rules reference](../reference/rules.md); `Codex` is one of them:
+
+```bash
+printf 'fix: parser\n\nCo-Authored-By: Codex <dev@example.com>\n' > /tmp/guardline-tour/message.txt
+```
+
+Scan it:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline scan /tmp/guardline-tour/message.txt
+```
+
+Guardline prints one line per finding, with the file, the line and column, the rule id, the family and what the rule catches. The command exits 1 because the default mode is `block`. It never prints the matched text.
+
+```text
+/tmp/guardline-tour/message.txt:3:1: attribution-co-author-trailer [attribution] A Co-Authored-By trailer whose name part names a coding agent or its vendor.
+```
+
+Run it again in report mode and check the exit status:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline scan --mode report /tmp/guardline-tour/message.txt; echo "exit $?"
+```
+
+Report mode prints the same findings and exits 0, which is how you try the rules on a repository before you let them block anything.
+
+## Judge a Tool Call
+
+An agent runtime sends a JSON description of each tool call to a hook on standard input. Send one by hand, a shell command that prints the whole environment:
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{"command":"printenv"}}' | /tmp/guardline-tour/venv/bin/guardline hook
+```
+
+The answer is a JSON deny decision on standard output, and the command exits 0, because that is how Claude Code reads a decision. Try a harmless command and see that nothing is printed:
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{"command":"ls -la"}}' | /tmp/guardline-tour/venv/bin/guardline hook
+```
+
+The [hook protocol reference](../reference/hook-protocol.md) describes the payload and the decision in full, and [use with claude code](../how-to-guides/use-with-claude-code.md) shows how to register the hook.
+
+## Choose Your Settings
+
+So far every run used the defaults: every rule on, and block mode. The `init` command lets you choose, and writes the result to a configuration file. Make a project directory and run it there:
+
+```bash
+mkdir -p /tmp/guardline-tour/project && cd /tmp/guardline-tour/project && /tmp/guardline-tour/venv/bin/guardline init
+```
+
+It asks four questions and shows the default in brackets, so pressing Enter accepts it. Answer them like this:
+
+1. Mode: press Enter for `block`. In block mode a finding stops the action. `report` only prints findings.
+2. Families: type `attribution,token` to run those two families and leave the environment dump rules off.
+3. Setup snippets: press Enter for `none`. You will print them in the [Claude Code guide](../how-to-guides/use-with-claude-code.md) and the [pre-commit guide](../how-to-guides/use-with-pre-commit.md) when you need them.
+4. Write this: it shows a diff of the file it is about to create. Type `y`.
+
+There is no `pyproject.toml` in this directory, so there is no question about where to write the file: it creates `guardline.toml`. Ask Guardline what is now active:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline config show
+```
+
+```text
+source: /tmp/guardline-tour/project/guardline.toml
+mode: block (config file)
+families: attribution, token
+disabled rules: none
+rule files: none
+exclude: none
+active rules: 29
+note: guardline hook reads only the file named by its --config option.
+```
+
+`init` never overwrites a configuration that already exists unless you pass `--force`, and `--yes` skips every question and the confirmation for scripts. See [choose block or report mode](../how-to-guides/choose-block-or-report-mode.md) for how to decide on a mode.
+
+## Turn a Rule Off
+
+Create `/tmp/guardline-tour/guardline.toml` with one disabled rule:
+
+```toml
+disable = ["attribution-co-author-trailer"]
+```
+
+Scan again with that file:
+
+```bash
+/tmp/guardline-tour/venv/bin/guardline scan --config /tmp/guardline-tour/guardline.toml /tmp/guardline-tour/message.txt
+```
+
+The trailer rule is gone, so the scan is clean unless another rule still matches. Every rule id is listed by `guardline rules list`, and an id that names no rule is an error, so a typo cannot silently leave a rule on.
+
+## Next Steps
+
+- Wire Guardline into a repository: [use with pre-commit](../how-to-guides/use-with-pre-commit.md).
+- Add your own rule: [add a custom rule](../how-to-guides/add-a-custom-rule.md).
+- Understand what Guardline does and does not stop: [security model](../explanation/security-model.md).
