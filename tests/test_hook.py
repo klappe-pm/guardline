@@ -258,7 +258,8 @@ def test_a_finding_from_a_rule_is_named_by_id_and_position_only() -> None:
 
 
 def test_a_deeply_nested_payload_is_named_as_such() -> None:
-    stdin = '{"tool_name": "Bash", "tool_input": {"x": ' + "[" * 5000 + "1" + "]" * 5000 + "}}"
+    # Python 3.12 and newer parse 5000 levels, so the parser only gives up at a much greater depth.
+    stdin = '{"tool_name": "Bash", "tool_input": {"x": ' + "[" * 100_000 + "1" + "]" * 100_000 + "}}"
     reason = reason_of(run_hook(stdin, Scanner()))
     assert "nests too deeply to parse" in reason
     assert "scanner failed" not in reason
