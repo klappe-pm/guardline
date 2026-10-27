@@ -9,8 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/guardline/"><img src="https://img.shields.io/pypi/v/guardline?style=flat-square&color=3ddc84&labelColor=162233&label=PyPI" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/guardline/"><img src="https://img.shields.io/pypi/pyversions/guardline?style=flat-square&color=5aa9ff&labelColor=162233&label=Python" alt="Python versions"></a>
   <a href="https://github.com/klappe-pm/guardline/tags"><img src="https://img.shields.io/github/v/tag/klappe-pm/guardline?style=flat-square&color=3ddc84&labelColor=162233&label=release" alt="Latest release"></a>
   <a href="https://github.com/klappe-pm/guardline/blob/main/LICENSE"><img src="https://img.shields.io/github/license/klappe-pm/guardline?style=flat-square&color=5aa9ff&labelColor=162233&label=license" alt="MIT license"></a>
   <a href="https://github.com/klappe-pm/guardline/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/dependencies-none-3ddc84?style=flat-square&labelColor=162233" alt="No runtime dependencies"></a>
