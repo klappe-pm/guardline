@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 
 import pytest
 
@@ -32,7 +33,15 @@ def run_commands(block: str) -> list[str]:
 
 
 def test_only_the_release_workflow_exists() -> None:
-    workflows = sorted(p.name for p in WORKFLOW.parent.iterdir())
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", ".github/workflows"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout
+        workflows = sorted(line.rsplit("/", 1)[-1] for line in out.splitlines() if line)
+    except (OSError, subprocess.CalledProcessError):
+        workflows = []
+    if not workflows:
+        workflows = sorted(p.name for p in WORKFLOW.parent.iterdir())
     assert workflows == ["release.yml"]
 
 
