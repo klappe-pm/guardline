@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -175,9 +176,25 @@ def test_the_community_and_repository_files_exist() -> None:
     assert "Copyright (c) 2026" in (ROOT / "LICENSE").read_text(encoding="utf-8")
 
 
+def tracked_github_files() -> set[str]:
+    """Return the tracked files under .github, so git-ignored local files do not count.
+
+    Falls back to a directory listing when git is unavailable or the tree is not a checkout.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", ".github"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout
+        files = {line for line in out.splitlines() if line}
+        if files:
+            return files
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    return {p.relative_to(ROOT).as_posix() for p in (ROOT / ".github").rglob("*") if p.is_file()}
+
+
 def test_github_holds_only_the_allowed_files() -> None:
-    present = {p.relative_to(ROOT).as_posix() for p in (ROOT / ".github").rglob("*") if p.is_file()}
-    assert present == GITHUB_FILES
+    assert tracked_github_files() == GITHUB_FILES
 
 
 def test_there_is_one_docs_tree() -> None:
