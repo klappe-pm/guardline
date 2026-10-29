@@ -178,6 +178,55 @@ def test_token_look_alikes_are_quiet(text: str) -> None:
     assert scan_text(text) == []
 
 
+@pytest.mark.parametrize("prefix", ["", "+"])
+@pytest.mark.parametrize("name", ["DesignTokens", "TokenSets"])
+def test_typescript_typed_object_declarations_are_not_credentials(name: str, prefix: str) -> None:
+    text = f"{prefix}export const {name}: CollectionConfig = {{"
+    assert "token-generic-assignment" not in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("prefix", ["", "+"])
+@pytest.mark.parametrize("name", ["DesignTokens", "TokenSets"])
+def test_typescript_generic_type_unions_are_not_credentials(name: str, prefix: str) -> None:
+    key = "design-tokens" if name == "DesignTokens" else "token-sets"
+    kind = f"{name}Select"
+    text = f"{prefix}    '{key}': {kind}<false> | {kind}<true>;"
+    assert "token-generic-assignment" not in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("name", ["apiToken", "api_key", "password"])
+def test_literal_credential_assignments_remain_detected(name: str) -> None:
+    value = "abcdefghijklmnop" + "1234"
+    assert "token-generic-assignment" in rule_ids(scan_text(f"{name} = '{value}'"))
+    assert "token-generic-assignment" in rule_ids(scan_text(f"{name}: {value}"))
+    assert "token-generic-assignment" in rule_ids(scan_text(f"const {name}: string = '{value}'"))
+    assert "token-generic-assignment" in rule_ids(scan_text(f"+const {name}: string = {value}"))
+
+
+@pytest.mark.parametrize(
+    ("label", "slug"),
+    [
+        ("Password", "password"),
+        ("Current password", "current-password"),
+        ("Confirm new password", "confirm-new-password"),
+        ("Provider API key", "provider-credential"),
+    ],
+)
+def test_quoted_form_label_values_are_not_assumed_safe(label: str, slug: str) -> None:
+    reference = ".".join(("pages", "forms", "labels", slug))
+    text = f'  "{label}": "{reference}",'
+    assert "token-generic-assignment" in rule_ids(scan_text(text))
+    assert "token-generic-assignment" in rule_ids(scan_text(f"+{text}"))
+
+
+def test_unrelated_content_lookalikes_and_credentials_remain_detected() -> None:
+    prefix = ".".join(("pages", "forms", "labels"))
+    value = "abcdefghijklmnop" + "1234"
+    cases = [("Password", f"{prefix}.unrelated-password"), ("api_key", f"{prefix}.{value}")]
+    for label, reference in cases:
+        assert "token-generic-assignment" in rule_ids(scan_text(f'"{label}": "{reference}"'))
+
+
 def test_a_finding_reports_kind_and_position_but_not_the_value() -> None:
     text = f"line\nexport T={FAKE_TOKEN}\n"
     finding = next(f for f in scan_text(text) if f.rule_id == "token-github-token")

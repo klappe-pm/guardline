@@ -45,6 +45,32 @@ ATTRIBUTION_FAMILY = "attribution"
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})[^\n]*")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
+# These complete TypeScript lines contain a type identifier, not an assigned
+# literal. Keep the forms narrow so ordinary unquoted YAML values still match.
+_TS_TYPED_OBJECT = re.compile(
+    r"\+?[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*"
+    r"[ \t]*:[ \t]*[A-Z][A-Za-z0-9_$]*[ \t]*=[ \t]*\{[ \t]*"
+)
+_TS_BOOLEAN_TYPE_UNION = re.compile(
+    r"\+?[ \t]*(?:'[A-Za-z0-9_-]+'|\"[A-Za-z0-9_-]+\"|[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"[ \t]*:[ \t]*(?P<name>[A-Z][A-Za-z0-9_$]*)<false>[ \t]*\|[ \t]*"
+    r"(?P=name)<true>;[ \t]*"
+)
+
+
+def _typescript_type_only_line(text: str, match: re.Match[str]) -> bool:
+    """Recognize bounded whole-line type declarations without hiding assignments."""
+    lower = max(0, match.start() - 512)
+    start = text.rfind("\n", lower, match.start())
+    if start == -1 and lower:
+        return False
+    upper = min(len(text), match.end() + 512)
+    end = text.find("\n", match.end(), upper)
+    if end == -1 and upper < len(text):
+        return False
+    line = text[start + 1 : end if end != -1 else len(text)].rstrip("\r")
+    return bool(_TS_TYPED_OBJECT.fullmatch(line) or _TS_BOOLEAN_TYPE_UNION.fullmatch(line))
+
 _GIT_AUTHORING = frozenset(
     {"commit", "tag", "notes", "merge", "commit-tree", "revert", "cherry-pick"}
 )
@@ -261,6 +287,10 @@ class Scanner:
                 continue
             for match in rule.regex.finditer(text):
                 if rule.unless_regex is not None and rule.unless_regex.search(match.group(0)):
+                    continue
+                if rule.id == "token-generic-assignment" and _typescript_type_only_line(
+                    text, match
+                ):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
                     continue
