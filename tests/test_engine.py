@@ -18,6 +18,7 @@ from guardline.engine import (
     is_authoring_command,
     strip_value_options,
 )
+from guardline.rules import builtin_rules
 from guardline.shell import SimpleCommand
 from tests.helpers import rule_ids
 from tests.samples import (
@@ -176,6 +177,180 @@ def test_token_shaped_values_are_found(text: str, rule: str) -> None:
 )
 def test_token_look_alikes_are_quiet(text: str) -> None:
     assert scan_text(text) == []
+
+
+# tokens: type identifiers and content keys are not credentials ------------------------------
+
+GENERIC = "token-generic-assignment"
+TOKENS = "Tok" + "ens"
+KEY = "K" + "ey"
+PASSWORD = "pass" + "word"
+API_TOKEN = "API_" + "TOKEN"
+COLLECTION = "Collection" + "Config"
+LONG_VALUE = "abcdefghijklmnop" + "1234"
+COPY_ATTRIBUTES = (f"title{KEY}", f"text{KEY}", "data-copy-" + KEY.lower())
+
+
+def _generic_match_covers(text: str, value: str) -> bool:
+    """Whether a generic assignment finding, rebuilt at its offset, spans ``value``.
+
+    A finding reports where the matched name starts, never the value, so the match is
+    rebuilt from the rule's own pattern to prove the credential is what was found.
+    """
+    rule = next(rule for rule in builtin_rules() if rule.id == GENERIC)
+    for finding in scan_text(text):
+        if finding.rule_id != GENERIC:
+            continue
+        match = rule.regex.match(text, finding.offset)
+        if match is not None and value in match.group(0):
+            return True
+    return False
+
+
+@pytest.mark.parametrize("prefix", ["", "+", "export "])
+@pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_typed_declaration_opening_an_object_is_quiet(prefix: str, name: str) -> None:
+    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{") == []
+    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{}}") == []
+
+
+@pytest.mark.parametrize("prefix", ["", "+"])
+@pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_generic_type_in_a_schema_field_is_quiet(prefix: str, name: str) -> None:
+    slug = (
+        "design-" + TOKENS.lower() if name.startswith("Design") else TOKENS[:-1].lower() + "-sets"
+    )
+    assert scan_text(f"{prefix}    '{slug}': {name}Select<false> | {name}Select<true>;") == []
+    assert scan_text(f"{prefix}{TOKENS.lower()}: Array<{name}>;") == []
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+@pytest.mark.parametrize(
+    "path",
+    [
+        "pages.referrals.good-work-starts-with-a-good",
+        "pages.referrals.make-an-introduction",
+        "pages.referrals.senior-advisory-is-500-to-1",
+        "pages.forms.labels.current-" + PASSWORD,
+        "pages.forms.labels." + PASSWORD,
+        "pages.home.monogram",
+        "global.site.email",
+        "pages.contact.form.rate",
+    ],
+)
+def test_a_content_key_of_dotted_words_is_quiet(attribute: str, path: str) -> None:
+    text = f'<PageIntro {attribute}="{path}" />'
+    assert scan_text(text) == []
+    assert scan_payload({"tool_name": "Write", "tool_input": {"content": text}}) == []
+    assert scan_text(f'  "{attribute}": "{path}",') == []
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, "api" + KEY, PASSWORD])
+@pytest.mark.parametrize(
+    "initializer",
+    [
+        f"'{LONG_VALUE}'",
+        f'"{LONG_VALUE}"',
+        f"`{LONG_VALUE}`",
+        f"\n  '{LONG_VALUE}'",
+        f"/* value */ '{LONG_VALUE}'",
+        f"{{ value: '{LONG_VALUE}' }}",
+    ],
+)
+def test_a_type_annotation_does_not_hide_a_credential_initializer(
+    name: str, initializer: str
+) -> None:
+    text = f"const {name}: {COLLECTION} = {initializer}"
+    assert _generic_match_covers(text, LONG_VALUE)
+    assert _generic_match_covers(f"+{text}", LONG_VALUE)
+
+
+def test_a_python_annotation_does_not_hide_a_credential_initializer() -> None:
+    assert _generic_match_covers(f'api_{KEY.lower()}: str = "{LONG_VALUE}"', LONG_VALUE)
+
+
+@pytest.mark.parametrize("shape", ["direct", "nested", "array"])
+def test_a_typed_object_does_not_hide_a_credential_on_its_opening_line(shape: str) -> None:
+    fields = {
+        "direct": f"value: '{LONG_VALUE}'",
+        "nested": f"config: {{ value: '{LONG_VALUE}' }}",
+        "array": f"fields: [{{ value: '{LONG_VALUE}' }}]",
+    }
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{ {fields[shape]} }}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_a_typed_object_with_short_strings_is_quiet() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{ slug: 'design', fields: [] }}"
+    assert scan_text(text) == []
+
+
+def test_a_named_credential_inside_a_typed_object_is_found_by_its_own_name() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n  {PASSWORD}: '{LONG_VALUE}',\n}}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_known_gap_an_unnamed_literal_on_a_later_line_of_a_typed_object_is_not_found() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n  value: '{LONG_VALUE}',\n}}"
+    assert scan_text(text) == []
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+@pytest.mark.parametrize(
+    "value",
+    ["example.service.private.v4lue", "Example.Service.Private.Value", "example.servicevalue"],
+)
+def test_a_dotted_value_with_a_token_trait_stays_a_finding(attribute: str, value: str) -> None:
+    text = f'<Heading {attribute}="{value}" />'
+    assert GENERIC in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(
+        scan_payload({"tool_name": "Write", "tool_input": {"content": text}})
+    )
+
+
+def test_known_gap_a_passphrase_of_dotted_lowercase_words_reads_as_a_content_key() -> None:
+    assert scan_text(f'{PASSWORD} = "correct.horse.battery.staple"') == []
+    assert GENERIC in rule_ids(scan_text(f'{PASSWORD} = "correct-horse-battery-staple"'))
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+def test_a_vendor_token_in_a_content_attribute_is_found(attribute: str) -> None:
+    text = f'<Heading {attribute}="{FAKE_TOKEN}" />'
+    assert "token-github-token" in rule_ids(scan_text(text))
+    payload = {"tool_name": "Write", "tool_input": {"content": text}}
+    assert "token-github-token" in rule_ids(scan_payload(payload))
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Pages.Referrals.Good-Work-Starts",
+        "pages.referrals.h2-heading-text",
+        "pages.referrals.good-work.",
+        "pages.referrals..good-work",
+        "pages.referrals.good--work",
+        "ya29.a0afh6smbx-abcdefghijk.x",
+    ],
+)
+def test_a_dotted_value_that_is_not_a_content_key_stays_a_finding(value: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f'"{PASSWORD.capitalize()}": "{value}"'))
+    if "-" in value:  # an unquoted chain of plain identifiers was already a reference
+        assert GENERIC in rule_ids(scan_text(f"{KEY}={value}"))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"{TOKENS.lower()}: " + "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=",
+        f"{TOKENS[:-1].lower()}: " + "a" * 128 + "=",
+        f"{TOKENS.lower()}: Design{TOKENS}Select<br>",
+        f"{KEY}=ya29.a0AfH6SMBx-abcdefghijk",
+        f"const {TOKENS}: Foo = '{LONG_VALUE[:16]}'",
+        f"{PASSWORD}: {LONG_VALUE} == other",
+    ],
+)
+def test_a_value_that_only_resembles_code_stays_a_finding(text: str) -> None:
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 def test_a_finding_reports_kind_and_position_but_not_the_value() -> None:

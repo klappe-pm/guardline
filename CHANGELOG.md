@@ -45,6 +45,10 @@ All notable changes to this project are documented in this file. The format foll
 - Ruff checks the `S` and `RUF` rule sets as well.
 - The configuration reference says that dictionary keys of a tool input count toward the `max_text_chars` bound of the hook, as the security model already did.
 
+### Fixed
+
+- `token-generic-assignment` no longer reports a TypeScript type identifier as a credential: a typed declaration (`const DesignTokens: Config = {`), a generic argument list in a schema field (`'design-tokens': Select<false> | Select<true>;`) and a quoted content key of lowercase words joined by two or more dots (`"pages.forms.labels.current-password"`, `"pages.home.monogram"`) are not findings. In a typed declaration the rule now reads the quoted initializer, including a template literal, a block comment before it, a line break after the equals sign and the first string of an object initializer, so a credential there is found by the same rule. Vendor token rules are unchanged. Regression tests cover the three false positive shapes and the credential controls around them.
+
 ### Security
 
 - An escaped or quoted `;`, `|`, `&`, `<`, `>` or parenthesis is now a word, not an operator, as in a shell. `find . -exec echo a \; -exec printenv \;` used to end the command at the `\;` and miss the second `-exec`; `echo a \; printenv` is now one `echo` command with a literal `;` argument. This closes the known gap listed for a second `find -exec`.
