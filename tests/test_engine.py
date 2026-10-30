@@ -290,9 +290,14 @@ def test_a_named_credential_inside_a_typed_object_is_found_by_its_own_name() -> 
     assert _generic_match_covers(text, LONG_VALUE)
 
 
-def test_known_gap_an_unnamed_literal_on_a_later_line_of_a_typed_object_is_not_found() -> None:
+def test_an_unnamed_literal_on_a_later_line_of_a_typed_object_is_found() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{\n  value: '{LONG_VALUE}',\n}}"
-    assert scan_text(text) == []
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_a_literal_after_a_closed_typed_object_does_not_match_its_declaration() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\nconst note = '{LONG_VALUE}'"
+    assert GENERIC not in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
@@ -308,9 +313,29 @@ def test_a_dotted_value_with_a_token_trait_stays_a_finding(attribute: str, value
     )
 
 
-def test_known_gap_a_passphrase_of_dotted_lowercase_words_reads_as_a_content_key() -> None:
-    assert scan_text(f'{PASSWORD} = "correct.horse.battery.staple"') == []
+def test_a_passphrase_of_dotted_lowercase_words_is_found() -> None:
+    assert GENERIC in rule_ids(scan_text(f'{PASSWORD} = "correct.horse.battery.staple"'))
     assert GENERIC in rule_ids(scan_text(f'{PASSWORD} = "correct-horse-battery-staple"'))
+
+
+@pytest.mark.parametrize("name", [PASSWORD, "api_secret"])
+@pytest.mark.parametrize("value", ["correct.horse.battery.staple", "pages.forms.labels.password"])
+def test_dotted_credentials_are_found_outside_public_copy_attributes(name: str, value: str) -> None:
+    text = f'{name} = "{value}"'
+    assert _generic_match_covers(text, value)
+    payload = {"tool_name": "Write", "tool_input": {"content": text}}
+    assert GENERIC in rule_ids(scan_payload(payload))
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+def test_public_copy_attribute_does_not_exempt_an_unrelated_namespace(attribute: str) -> None:
+    text = f'<Heading {attribute}="correct.horse.battery.staple" />'
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_prefixed_attribute_does_not_inherit_the_public_copy_exception() -> None:
+    text = f'<Heading private-{COPY_ATTRIBUTES[0]}="pages.forms.labels.password" />'
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)

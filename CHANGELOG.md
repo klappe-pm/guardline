@@ -47,7 +47,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
-- `token-generic-assignment` no longer reports a TypeScript type identifier as a credential: a typed declaration (`const DesignTokens: Config = {`), a generic argument list in a schema field (`'design-tokens': Select<false> | Select<true>;`) and a quoted content key of lowercase words joined by two or more dots (`"pages.forms.labels.current-password"`, `"pages.home.monogram"`) are not findings. In a typed declaration the rule now reads the quoted initializer, including a template literal, a block comment before it, a line break after the equals sign and the first string of an object initializer, so a credential there is found by the same rule. Vendor token rules are unchanged. Regression tests cover the three false positive shapes and the credential controls around them.
+- `token-generic-assignment` distinguishes TypeScript type identifiers from assigned literals and recognizes namespaced public copy references only in supported copy attributes. A dotted password or secret remains a finding. The typed initializer scan includes the first quoted value in a bounded multiline object and stops at the closing brace. Vendor token rules are unchanged. Regression tests cover the false positives and credential controls.
 
 ### Security
 

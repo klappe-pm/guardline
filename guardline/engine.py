@@ -45,6 +45,24 @@ ATTRIBUTION_FAMILY = "attribution"
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})[^\n]*")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
+_PUBLIC_COPY_ATTRIBUTE = re.compile(
+    r"(?<![A-Za-z0-9_-])(?:data-copy-key|titleKey|textKey)[\"']?[ \t]{0,8}"
+    r"[:=][ \t]{0,8}(?P<quote>[\"'])(?:pages|global)"
+    r"(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,16}(?P=quote)"
+)
+
+
+def _is_public_copy_attribute(text: str, match: re.Match[str]) -> bool:
+    """Identify a known public-copy attribute containing a namespaced content path."""
+    start = max(0, match.start() - 32)
+    end = min(len(text), match.end() + 1)
+    return any(
+        start + item.start() <= match.start() < start + item.end()
+        and start + item.end() == match.end()
+        for item in _PUBLIC_COPY_ATTRIBUTE.finditer(text[start:end])
+    )
+
+
 _GIT_AUTHORING = frozenset(
     {"commit", "tag", "notes", "merge", "commit-tree", "revert", "cherry-pick"}
 )
@@ -261,6 +279,8 @@ class Scanner:
                 continue
             for match in rule.regex.finditer(text):
                 if rule.unless_regex is not None and rule.unless_regex.search(match.group(0)):
+                    continue
+                if rule.id == "token-generic-assignment" and _is_public_copy_attribute(text, match):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
                     continue
