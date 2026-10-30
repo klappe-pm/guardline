@@ -334,6 +334,20 @@ def test_a_join_expression_in_a_typed_object_keeps_the_baseline_finding() -> Non
     assert GENERIC in rule_ids(scan_text(text))
 
 
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "['fragmentone', 'fragmenttwo']['join']('')",
+        "['fragmentone', 'fragmenttwo']?.join('')",
+        "combine('fragmentone', 'fragmenttwo')",
+    ],
+)
+def test_computed_string_expressions_keep_the_baseline_finding(expression: str) -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: {expression},\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
 def test_a_typed_object_followed_by_an_expression_keeps_the_baseline_finding() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\n&& '{LONG_VALUE}'"
     assert GENERIC in rule_ids(scan_text(text))
