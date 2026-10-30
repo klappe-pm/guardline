@@ -63,9 +63,11 @@ _TOKEN_LITERAL = re.compile(r"[A-Za-z0-9_./+=-]{16,}")
 _IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\Z")
 _METHOD_CALL = re.compile(
     r"[ \t\r\n]*(?:(?:\?\.|\.)[A-Za-z_$][A-Za-z0-9_$]*"
-    r"|\[[ \t]*[\"'][A-Za-z_$][A-Za-z0-9_$]*[\"'][ \t]*\])[ \t\r\n]*\("
+    r"|(?:\?\.)?\[[ \t]*[\"'][A-Za-z_$][A-Za-z0-9_$]*[\"'][ \t]*\])[ \t\r\n]*\("
 )
-_PROPERTY_CALL = re.compile(r"[ \t]*(?:new[ \t]+)?[A-Za-z_$][A-Za-z0-9_$]*[ \t]*\(")
+_PROPERTY_CALL = re.compile(
+    r"[ \t]*(?:new[ \t]+)?[A-Za-z_$][A-Za-z0-9_$]*[ \t]*(?:[.(\[]|\?\.)"
+)
 _NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
 _TYPE_BODY_LIMIT = 65536
 _TYPE_BODY_DEPTH = 64
