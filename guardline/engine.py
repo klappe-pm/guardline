@@ -45,11 +45,6 @@ ATTRIBUTION_FAMILY = "attribution"
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})[^\n]*")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
-_PUBLIC_COPY_ATTRIBUTE = re.compile(
-    r"(?<![A-Za-z0-9_-])(?:data-copy-key|titleKey|textKey)[\"']?[ \t]{0,8}"
-    r"[:=][ \t]{0,8}(?P<quote>[\"'])(?:pages|global)"
-    r"(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,16}(?P=quote)"
-)
 _TYPE_OBJECT_DECLARATION = re.compile(
     r"\+?[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*"
     r"[ \t]*:[ \t]*[A-Z][A-Za-z0-9_$]*[ \t]*=[ \t]*\{(?:[^}\n]{0,200}\})?[ \t]*"
@@ -72,23 +67,6 @@ _SAFE_SIMPLE_ARROW = re.compile(r"[ \t]*\([ \t]*\)[ \t]*=>[ \t]*(?:true|false|nu
 _NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
 _TYPE_BODY_LIMIT = 65536
 _TYPE_BODY_DEPTH = 64
-
-
-def _is_public_copy_attribute(text: str, match: re.Match[str]) -> bool:
-    """Identify a known public-copy attribute containing a namespaced content path."""
-    start = max(0, match.start() - 32)
-    end = min(len(text), match.end() + 1)
-    context = text[max(0, match.start() - 1024) : match.start()]
-    opening = context.rfind("<")
-    if opening < 0 or context.rfind(">") > opening:
-        return False
-    if not re.match(r"<[A-Za-z][A-Za-z0-9_.:-]*\b", context[opening:]):
-        return False
-    return any(
-        start + item.start() <= match.start() < start + item.end()
-        and start + item.end() == match.end()
-        for item in _PUBLIC_COPY_ATTRIBUTE.finditer(text[start:end])
-    )
 
 
 def _safe_type_body(text: str, start: int) -> bool:
@@ -408,8 +386,6 @@ class Scanner:
                         or re.match(r"(?i)^secret[ \t]*:[ \t]*//", match.group(0))
                     )
                 ):
-                    continue
-                if rule.id == "token-generic-assignment" and _is_public_copy_attribute(text, match):
                     continue
                 if rule.id == "token-generic-assignment" and _is_type_declaration(text, match):
                     continue

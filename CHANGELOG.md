@@ -47,7 +47,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
-- `token-generic-assignment` distinguishes TypeScript type identifiers from assigned literals and recognizes namespaced public copy references only in supported JSX attributes and properties. Quoted and unquoted dotted password and secret assignments remain findings. The typed initializer scan covers quoted values in a bounded multiline object and stops at the closing brace. Vendor token rules are unchanged. Regression tests cover the false positives and credential controls.
+- `token-generic-assignment` distinguishes TypeScript type identifiers from assigned literals while retaining findings when typed-object inspection cannot finish safely. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover the false positives and credential controls.
 
 ### Security
 
