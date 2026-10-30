@@ -55,90 +55,82 @@ _TYPE_UNION_DECLARATION = re.compile(
     r"(?P=type)<true>;[ \t]*"
 )
 _TOKEN_LITERAL = re.compile(r"[A-Za-z0-9_./+=-]{16,}")
-_IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\Z")
-_METHOD_CALL = re.compile(
-    r"[ \t\r\n]*(?:(?:\?\.|\.)[A-Za-z_$][A-Za-z0-9_$]*"
-    r"|(?:\?\.)?\[[ \t]*[\"'][A-Za-z_$][A-Za-z0-9_$]*[\"'][ \t]*\])[ \t\r\n]*\("
-)
-_PROPERTY_CALL = re.compile(
-    r"[ \t]*(?:\(|(?:new[ \t]+)?[A-Za-z_$][A-Za-z0-9_$]*[ \t]*(?:[.(\[]|\?\.))"
-)
-_SAFE_SIMPLE_ARROW = re.compile(r"[ \t]*\([ \t]*\)[ \t]*=>[ \t]*(?:true|false|null)(?=[ \t]*[,}])")
+_OBJECT_KEY = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+_SIMPLE_VALUE = re.compile(r"(?:true|false|null)(?![A-Za-z0-9_$])")
 _NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
 _TYPE_BODY_LIMIT = 65536
 _TYPE_BODY_DEPTH = 64
 
 
 def _safe_type_body(text: str, start: int) -> bool:
-    """Check a bounded object before treating a type annotation as nonsecret."""
-    depth = 0
+    """Accept only bounded, literal object and array initializers without secret-like text."""
     end = min(len(text), start + _TYPE_BODY_LIMIT)
-    index = start
-    while index < end:
-        char = text[index]
-        if char == "{":
-            depth += 1
-            if depth > _TYPE_BODY_DEPTH:
-                return False
-        elif char == "}":
-            depth -= 1
-            if depth == 0:
-                tail = text[index + 1 : end]
-                remaining = tail.lstrip()
-                if not remaining:
-                    return end == len(text)
-                if remaining.startswith(";"):
-                    return True
-                return "\n" in tail[: len(tail) - len(remaining)] and bool(
-                    _NEXT_DECLARATION.match(remaining)
-                )
-            if depth < 0:
-                return False
-        elif (char == "]" and _METHOD_CALL.match(text, index + 1, end)) or (
-            char == ":"
-            and _PROPERTY_CALL.match(text, index + 1, end)
-            and not _SAFE_SIMPLE_ARROW.match(text, index + 1, end)
-        ):
-            return False
-        elif char == "/":
-            if text.startswith("//", index):
-                next_line = text.find("\n", index + 2, end)
-                if next_line < 0 or _TOKEN_LITERAL.search(text[index:next_line]):
-                    return False
-                index = next_line
-                continue
-            if text.startswith("/*", index):
-                close = text.find("*/", index + 2, end)
-                if close < 0 or _TOKEN_LITERAL.search(text[index:close]):
-                    return False
-                index = close + 2
-                continue
-            return False
-        elif char == "+":
-            return False
-        elif char in "\"'`":
-            quote = char
+
+    def whitespace(index: int) -> int:
+        while index < end and text[index] in " \t\r\n":
             index += 1
-            start_literal = index
-            while index < end and text[index] != quote:
-                if text[index] == "\\":
-                    return False
-                if quote == "`" and text.startswith("${", index):
-                    if _TOKEN_LITERAL.search(text[start_literal:index]):
-                        return False
-                    close = text.find("}", index + 2, end)
-                    if close < 0 or not _IDENTIFIER.fullmatch(text[index + 2 : close]):
-                        return False
-                    index = close + 1
-                    start_literal = index
-                    continue
+        return index
+
+    def string(index: int, *, key: bool = False) -> int | None:
+        quote = text[index]
+        close = text.find(quote, index + 1, end)
+        if close < 0 or any(char in text[index + 1 : close] for char in "\\\r\n"):
+            return None
+        if _TOKEN_LITERAL.search(text[index + 1 : close]):
+            return None
+        if not key and close != index + 1:
+            return None
+        return close + 1
+
+    def value(index: int, depth: int) -> int | None:
+        index = whitespace(index)
+        if index >= end or depth > _TYPE_BODY_DEPTH:
+            return None
+        char = text[index]
+        if char in "\"'":
+            return string(index)
+        if char not in "{[":
+            literal = _SIMPLE_VALUE.match(text, index, end)
+            if literal and not _TOKEN_LITERAL.search(literal.group(0)):
+                return literal.end()
+            return None
+        closing = "}" if char == "{" else "]"
+        index = whitespace(index + 1)
+        while index < end and text[index] != closing:
+            if char == "{":
+                if text[index] in "\"'":
+                    key_end = string(index, key=True)
+                else:
+                    key = _OBJECT_KEY.match(text, index, end)
+                    key_end = key.end() if key and not _TOKEN_LITERAL.search(key.group(0)) else None
+                if key_end is None:
+                    return None
+                index = whitespace(key_end)
+                if index >= end or text[index] != ":":
+                    return None
                 index += 1
-            if index >= end or _TOKEN_LITERAL.search(text[start_literal:index]):
-                return False
-            if _METHOD_CALL.match(text, index + 1, end):
-                return False
-        index += 1
-    return False
+            parsed = value(index, depth + 1)
+            if parsed is None:
+                return None
+            index = whitespace(parsed)
+            if index < end and text[index] == ",":
+                index = whitespace(index + 1)
+            elif index >= end or text[index] != closing:
+                return None
+        return index + 1 if index < end else None
+
+    finish = value(start, 1)
+    if finish is None:
+        return False
+    tail = text[finish:end]
+    remaining = tail.lstrip()
+    if not remaining:
+        return end == len(text)
+    if remaining.startswith(";"):
+        return True
+    return "\n" in tail[: len(tail) - len(remaining)] and bool(
+        _NEXT_DECLARATION.match(remaining)
+    )
 
 
 def _is_type_declaration(text: str, match: re.Match[str]) -> bool:

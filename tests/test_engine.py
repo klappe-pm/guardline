@@ -290,9 +290,9 @@ def test_a_typed_object_does_not_hide_a_credential_on_its_opening_line(shape: st
     assert _generic_match_covers(text, LONG_VALUE)
 
 
-def test_a_typed_object_with_short_strings_is_quiet() -> None:
+def test_a_typed_object_with_short_strings_keeps_the_baseline_finding() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{ slug: 'design', fields: [] }}"
-    assert scan_text(text) == []
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 def test_a_named_credential_inside_a_typed_object_is_found_by_its_own_name() -> None:
@@ -354,6 +354,45 @@ def test_a_join_expression_in_a_typed_object_keeps_the_baseline_finding() -> Non
 def test_computed_string_expressions_keep_the_baseline_finding(expression: str) -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
     text += f"value: {expression},\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "flag && combine('fragmentone', 'fragmenttwo')",
+        "await combine('fragmentone', 'fragmenttwo')",
+        "flag ? combine('fragmentone', 'fragmenttwo') : 'short'",
+        "short || combine('fragmentone', 'fragmenttwo')",
+        "unknownValue",
+        "{ ...unknownValue }",
+        "1 * 2",
+        "`short${unknownValue}`",
+        "'short\\u0041'",
+        "/* comment */ 'short'",
+        "{ nested: [true, { value: unknownValue }] }",
+        "1234567890123456",
+        "{ abcdefghijklmnop: true }",
+        "'short'",
+        "7",
+    ],
+)
+def test_unsupported_typed_object_values_keep_the_baseline_finding(expression: str) -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: {expression},\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_nested_short_literals_are_safe_in_a_typed_object() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: { items: ['', true, null, false] },\n}"
+    assert GENERIC not in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, PASSWORD, f"Design{TOKENS}"])
+def test_a_short_value_in_a_typed_object_keeps_the_baseline_finding(name: str) -> None:
+    text = f"export const {name}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: 'short',\n}"
     assert GENERIC in rule_ids(scan_text(text))
 
 
