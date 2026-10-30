@@ -74,7 +74,7 @@ Token-shaped rules judge text, and also the whole text of a shell command, so a 
 | `token-hex-run-near-keyword` | text | A hexadecimal run of thirty-two or more characters directly after the word key, token, secret or password. |
 | `token-base64-run-near-keyword` | text | A mixed case base64 run of forty or more characters assigned to a name ending in key, token or secret. |
 
-Prefix rules start at a token boundary and cap the length of the run they read, which keeps scan time linear. The generic assignment rule ignores a dotted chain of identifiers (`settings.env.api_key`) and a `secret://` reference. It also recognizes lowercase `pages` and `global` content paths only in the supported public copy attributes `data-copy-key`, `titleKey` and `textKey`. Dotted password and secret assignments remain findings. The rule distinguishes a generic type or typed declaration from an assigned literal and examines the first quoted string in a bounded typed object initializer, including across lines before its closing brace.
+Prefix rules start at a token boundary and cap the length of the run they read, which keeps scan time linear. The generic assignment rule ignores a dotted chain of identifiers (`settings.env.api_key`) and a `secret://` reference. It also recognizes lowercase `pages` and `global` content paths only in the supported public copy attributes `data-copy-key`, `titleKey` and `textKey` inside a JSX tag. Quoted and unquoted dotted password and secret assignments remain findings. The rule distinguishes a generic type or typed declaration from an assigned literal and examines quoted strings in a bounded typed object initializer, including across lines before its closing brace.
 
 ## Engine Findings
 

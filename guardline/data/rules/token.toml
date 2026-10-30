@@ -157,7 +157,7 @@ example_clean = "the header uses the \u0042earer scheme"
 id = "token-generic-assignment"
 family = "token"
 description = "A key, token, secret or password name assigned a literal of sixteen or more token characters."
-pattern = '''(?:KEY|TOKEN|SECRET|PASSWORD)[A-Za-z0-9_]{0,40}["']?[ \t]{0,8}(?:[=:][ \t]{0,8}(?:["'`][A-Za-z0-9_./+=-]{16,256}+["'`]|[A-Za-z0-9_./+=-]{16,128}+(?!\(|[ \t]{1,8}=(?!=)|<[^<>\n]{0,80}>[ \t]{0,8}[|;,)\]=>&]))|:[ \t]{0,8}[A-Za-z_$][A-Za-z0-9_$]{0,79}(?:<[^<>\n]{0,80}>)?[ \t]{1,8}=[ \t\r\n]{0,8}(?:/\*[^*\n]{0,80}\*/[ \t]{0,8})?(?:\{[^"'`}]{0,200})?["'`][A-Za-z0-9_./+=-]{16,256}+["'`])'''
+pattern = '''(?:KEY|TOKEN|SECRET|PASSWORD)[A-Za-z0-9_]{0,40}["']?[ \t]{0,8}(?::[ \t]{0,8}[A-Za-z_$][A-Za-z0-9_$]{0,79}(?:<[^<>\n]{0,80}>)?[ \t]{1,8}=[ \t\r\n]{0,8}(?:/\*[^*\n]{0,80}\*/[ \t]{0,8})?(?:\{[^}]{0,200}?)?["'`][A-Za-z0-9_./+=-]{16,256}+["'`]|[=:][ \t]{0,8}(?:["'`][A-Za-z0-9_./+=-]{16,256}+["'`]|[A-Za-z0-9_./+=-]{16,128}+(?!\()))'''
 unless = '''[=:][ \t]{0,8}(?://|[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*){1,8}[]});,'"\s]?$)'''
 example_fires = "api_key = \"abcdefghijklmnop12345678\""
 example_clean = "api_key = settings.env.api_key"
