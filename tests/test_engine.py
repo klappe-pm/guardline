@@ -210,7 +210,7 @@ def _generic_match_covers(text: str, value: str) -> bool:
 @pytest.mark.parametrize("prefix", ["", "+", "export "])
 @pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
 def test_a_typed_declaration_opening_an_object_is_quiet(prefix: str, name: str) -> None:
-    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{") == []
+    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{\n}}") == []
     assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{}}") == []
 
 
@@ -307,6 +307,23 @@ def test_a_later_literal_in_a_typed_object_is_found_after_a_short_string() -> No
         f"  label: 'short',\n  value: '{LONG_VALUE}',\n}}"
     )
     assert _generic_match_covers(text, LONG_VALUE)
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_late_credential_in_a_typed_object_keeps_the_baseline_finding(name: str) -> None:
+    text = f"export const {name}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: '{LONG_VALUE}',\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_an_unclosed_typed_object_fails_closed() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_typed_object_beyond_the_inspection_limit_fails_closed() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 65536 + "}"
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 def test_a_literal_after_a_closed_typed_object_does_not_match_its_declaration() -> None:

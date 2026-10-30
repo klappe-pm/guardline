@@ -59,6 +59,10 @@ _TYPE_UNION_DECLARATION = re.compile(
     r"[ \t]*:[ \t]*(?P<type>[A-Z][A-Za-z0-9_$]*)<false>[ \t]*\|[ \t]*"
     r"(?P=type)<true>;[ \t]*"
 )
+_TOKEN_LITERAL = re.compile(r"[A-Za-z0-9_./+=-]{16,}")
+_IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\Z")
+_TYPE_BODY_LIMIT = 65536
+_TYPE_BODY_DEPTH = 64
 
 
 def _is_public_copy_attribute(text: str, match: re.Match[str]) -> bool:
@@ -78,6 +82,60 @@ def _is_public_copy_attribute(text: str, match: re.Match[str]) -> bool:
     )
 
 
+def _safe_type_body(text: str, start: int) -> bool:
+    """Check a bounded object before treating a type annotation as nonsecret."""
+    depth = 0
+    end = min(len(text), start + _TYPE_BODY_LIMIT)
+    index = start
+    while index < end:
+        char = text[index]
+        if char == "{":
+            depth += 1
+            if depth > _TYPE_BODY_DEPTH:
+                return False
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return True
+            if depth < 0:
+                return False
+        elif char == "/":
+            if text.startswith("//", index):
+                next_line = text.find("\n", index + 2, end)
+                if next_line < 0 or _TOKEN_LITERAL.search(text[index:next_line]):
+                    return False
+                index = next_line
+                continue
+            if text.startswith("/*", index):
+                close = text.find("*/", index + 2, end)
+                if close < 0 or _TOKEN_LITERAL.search(text[index:close]):
+                    return False
+                index = close + 2
+                continue
+            return False
+        elif char in "\"'`":
+            quote = char
+            index += 1
+            start_literal = index
+            while index < end and text[index] != quote:
+                if text[index] == "\\":
+                    return False
+                if quote == "`" and text.startswith("${", index):
+                    if _TOKEN_LITERAL.fullmatch(text[start_literal:index]):
+                        return False
+                    close = text.find("}", index + 2, end)
+                    if close < 0 or not _IDENTIFIER.fullmatch(text[index + 2 : close]):
+                        return False
+                    index = close + 1
+                    start_literal = index
+                    continue
+                index += 1
+            if index >= end or _TOKEN_LITERAL.fullmatch(text[start_literal:index]):
+                return False
+        index += 1
+    return False
+
+
 def _is_type_declaration(text: str, match: re.Match[str]) -> bool:
     """Recognize complete typed declarations when no literal matched the rule."""
     if "=" in match.group(0):
@@ -91,7 +149,12 @@ def _is_type_declaration(text: str, match: re.Match[str]) -> bool:
             return False
         end = len(text)
     line = text[start:end].rstrip("\r")
-    return bool(_TYPE_OBJECT_DECLARATION.fullmatch(line) or _TYPE_UNION_DECLARATION.fullmatch(line))
+    if _TYPE_UNION_DECLARATION.fullmatch(line):
+        return True
+    if not _TYPE_OBJECT_DECLARATION.fullmatch(line):
+        return False
+    opening = start + line.index("{")
+    return _safe_type_body(text, opening)
 
 
 _GIT_AUTHORING = frozenset(
