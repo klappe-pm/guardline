@@ -109,7 +109,7 @@ These are cases a person would call a violation and Guardline does not flag. Eac
 - **Headerless private keys.** The key rule matches the PEM or PGP header line. A body pasted without it is not matched.
 - **False positives.** The generic rules fire on non-secrets that look the same: a long identifier assigned to a name that contains `key`, or a hash next to the word `token`. A typed declaration, a generic argument list and supported namespaced public copy references are recognised; see [Rules](../reference/rules.md).
 - **Public copy attributes.** The generic assignment rule treats a namespaced copy reference in a supported public copy attribute inside a JSX tag as metadata. A real secret deliberately placed in that exact field and shaped like such a reference may be missed unless another token rule detects it. Ordinary password and secret assignments do not receive this exception.
-- **Object initializers in typed declarations.** The generic rule examines quoted strings within a bounded portion of a typed object initializer, including later lines before a closing brace. A credential beyond that bound or after a closing brace may not be found unless a field name triggers a rule independently.
+- **Object initializers in typed declarations.** The generic rule examines quoted strings within a bounded typed object initializer. If inspection encounters a credential-shaped literal, unsupported syntax, excessive nesting or the input bound before the object closes, the original annotation finding remains. That retained finding may point at the annotation rather than at the value.
 
 ### Structure
 
