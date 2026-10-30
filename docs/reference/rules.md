@@ -1,6 +1,6 @@
 # Rules
 
-This page lists all 43 built-in rules, grouped by family: 9 attribution rules, 14 environment dump rules and 20 token-shaped value rules. Each row gives the rule id, which you use to disable it, the scope that says how it is applied, and what it catches. The authoritative definition of a rule is its entry in the rule files under `guardline/data/rules/`, and each entry carries the two examples that the tests run. Fields are explained in the [rule file format](rule-file-format.md).
+This page lists all 45 built-in rules, grouped by family: 9 attribution rules, 14 environment dump rules and 22 token-shaped value rules. Each row gives the rule id, which you use to disable it, the scope that says how it is applied, and what it catches. The authoritative definition of a rule is its entry in the rule files under `guardline/data/rules/`, and each entry carries the two examples that the tests run. Fields are explained in the [rule file format](rule-file-format.md).
 
 A finding carries the rule id and a position and never the matched text. All patterns are heuristics; the [security model](../explanation/security-model.md) lists what they miss.
 
@@ -71,6 +71,8 @@ Token-shaped rules judge text, and also the whole text of a shell command, so a 
 | `token-jwt` | text | A JSON web token: three dot separated base64url segments, the first starting with eyJ. |
 | `token-bearer-token` | text | A Bearer credential of twenty or more token characters. |
 | `token-generic-assignment` | text | A key, token, secret or password name assigned a literal of sixteen or more token characters. |
+| `token-typed-assignment` | text | A key, token, secret or password name with a type annotation and a literal credential. |
+| `token-backtick-assignment` | text | A key, token, secret or password name assigned a backtick literal credential. |
 | `token-hex-run-near-keyword` | text | A hexadecimal run of thirty-two or more characters directly after the word key, token, secret or password. |
 | `token-base64-run-near-keyword` | text | A mixed case base64 run of forty or more characters assigned to a name ending in key, token or secret. |
 

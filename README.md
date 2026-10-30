@@ -12,7 +12,7 @@
   <a href="https://github.com/klappe-pm/guardline/tags"><img src="https://img.shields.io/github/v/tag/klappe-pm/guardline?style=flat-square&color=3ddc84&labelColor=162233&label=release" alt="Latest release"></a>
   <a href="https://github.com/klappe-pm/guardline/blob/main/LICENSE"><img src="https://img.shields.io/github/license/klappe-pm/guardline?style=flat-square&color=5aa9ff&labelColor=162233&label=license" alt="MIT license"></a>
   <a href="https://github.com/klappe-pm/guardline/blob/main/pyproject.toml"><img src="https://img.shields.io/badge/dependencies-none-3ddc84?style=flat-square&labelColor=162233" alt="No runtime dependencies"></a>
-  <a href="https://github.com/klappe-pm/guardline/blob/main/docs/README.md"><img src="https://img.shields.io/badge/rules-43-5aa9ff?style=flat-square&labelColor=162233" alt="43 built-in rules"></a>
+  <a href="https://github.com/klappe-pm/guardline/blob/main/docs/README.md"><img src="https://img.shields.io/badge/rules-45-5aa9ff?style=flat-square&labelColor=162233" alt="45 built-in rules"></a>
 </p>
 
 <p align="center">
@@ -48,7 +48,7 @@ Guardline is one detector library behind three entry points. The same rules run 
 
 ## Highlights
 
-- **43 built-in rules in three families.** Agent attribution (9), environment dumps (14) and token-shaped values (20).
+- **45 built-in rules in three families.** Agent attribution (9), environment dumps (14) and token-shaped values (22).
 - **One verdict, three entry points.** `guardline hook` for an agent runtime, the pre-commit hooks, and `guardline scan` and `guardline diff` for the command line and CI.
 - **Never prints a value.** Findings, deny reasons and logs carry rule ids and positions only, and tests prove it across the API, the hook and the command line.
 - **Reads shell the way a shell does.** A lexer decodes quoting and looks through pipes, substitutions, heredocs and wrappers such as `sudo`, `ssh`, `env` and `bash -c`.

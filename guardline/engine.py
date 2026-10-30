@@ -45,59 +45,6 @@ ATTRIBUTION_FAMILY = "attribution"
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})[^\n]*")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
-_TYPE_OBJECT_DECLARATION = re.compile(
-    r"\+?[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*"
-    r"[ \t]*:[ \t]*[A-Z][A-Za-z0-9_$]*[ \t]*=[ \t]*\{(?:[^}\n]{0,200}\})?[ \t]*"
-)
-_TYPE_UNION_DECLARATION = re.compile(
-    r"\+?[ \t]*(?:'[A-Za-z0-9_-]+'|\"[A-Za-z0-9_-]+\"|[A-Za-z_$][A-Za-z0-9_$]*)"
-    r"[ \t]*:[ \t]*(?P<type>[A-Z][A-Za-z0-9_$]*)<false>[ \t]*\|[ \t]*"
-    r"(?P=type)<true>;[ \t]*"
-)
-_NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
-_TYPE_BODY_LIMIT = 65536
-
-
-def _safe_type_body(text: str, start: int) -> bool:
-    """Accept only a bounded, empty object with a complete declaration terminator."""
-    end = min(len(text), start + _TYPE_BODY_LIMIT)
-    index = start + 1
-    while index < end and text[index] in " \t\r\n":
-        index += 1
-    if index >= end or text[index] != "}":
-        return False
-    tail = text[index + 1 : end]
-    remaining = tail.lstrip()
-    if not remaining:
-        return end == len(text)
-    if remaining.startswith(";"):
-        return True
-    return "\n" in tail[: len(tail) - len(remaining)] and bool(
-        _NEXT_DECLARATION.match(remaining)
-    )
-
-
-def _is_type_declaration(text: str, match: re.Match[str]) -> bool:
-    """Recognize complete typed declarations when no literal matched the rule."""
-    if "=" in match.group(0):
-        return False
-    start = text.rfind("\n", max(0, match.start() - 512), match.start()) + 1
-    if start == 0 and match.start() > 512:
-        return False
-    end = text.find("\n", match.end(), min(len(text), match.end() + 512))
-    if end < 0:
-        if len(text) - match.end() > 512:
-            return False
-        end = len(text)
-    line = text[start:end].rstrip("\r")
-    if _TYPE_UNION_DECLARATION.fullmatch(line):
-        return True
-    if not _TYPE_OBJECT_DECLARATION.fullmatch(line):
-        return False
-    opening = start + line.index("{")
-    return _safe_type_body(text, opening)
-
-
 _GIT_AUTHORING = frozenset(
     {"commit", "tag", "notes", "merge", "commit-tree", "revert", "cherry-pick"}
 )
@@ -322,8 +269,6 @@ class Scanner:
                         or re.match(r"(?i)^secret[ \t]*:[ \t]*//", match.group(0))
                     )
                 ):
-                    continue
-                if rule.id == "token-generic-assignment" and _is_type_declaration(text, match):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
                     continue

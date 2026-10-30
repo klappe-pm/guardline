@@ -78,7 +78,7 @@ def test_ids_are_unique() -> None:
 
 def test_family_counts() -> None:
     counts = Counter(rule.family for rule in RULES)
-    assert counts == {"attribution": 9, "env-dump": 14, "token": 20}
+    assert counts == {"attribution": 9, "env-dump": 14, "token": 22}
 
 
 def test_rule_files_are_package_data() -> None:
