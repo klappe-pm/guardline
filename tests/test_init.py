@@ -415,7 +415,7 @@ def test_config_show_with_no_file_reports_the_defaults(run: Run) -> None:
     assert "mode: block (default)" in out
     assert "families: attribution, env-dump, token" in out
     assert "disabled rules: none" in out
-    assert "active rules: 43" in out
+    assert "active rules: 45" in out
     assert "guardline hook reads only the file named by its --config" in out
 
 
@@ -432,7 +432,7 @@ def test_config_show_reads_the_discovered_file(run: Run, project: Path) -> None:
     assert "families: token\n" in out
     assert "disabled rules: token-hex-run-near-keyword" in out
     assert "exclude: *.lock" in out
-    assert "active rules: 19" in out
+    assert "active rules: 21" in out
 
 
 def test_config_show_applies_command_line_overrides(run: Run, project: Path) -> None:

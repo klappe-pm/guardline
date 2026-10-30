@@ -182,6 +182,8 @@ def test_token_look_alikes_are_quiet(text: str) -> None:
 # tokens: type identifiers and content keys are not credentials ------------------------------
 
 GENERIC = "token-generic-assignment"
+TYPED = "token-typed-assignment"
+BACKTICK = "token-backtick-assignment"
 TOKENS = "Tok" + "ens"
 KEY = "K" + "ey"
 PASSWORD = "pass" + "word"
@@ -192,36 +194,64 @@ COPY_ATTRIBUTES = (f"title{KEY}", f"text{KEY}", "data-copy-" + KEY.lower())
 
 
 def _generic_match_covers(text: str, value: str) -> bool:
-    """Whether a generic assignment finding, rebuilt at its offset, spans ``value``.
+    """Whether an assignment finding, rebuilt at its offset, spans ``value``.
 
     A finding reports where the matched name starts, never the value, so the match is
-    rebuilt from the rule's own pattern to prove the credential is what was found.
+    rebuilt from the rule's own pattern to prove it spans the final value occurrence.
     """
-    rule = next(rule for rule in builtin_rules() if rule.id == GENERIC)
+    rules = {rule.id: rule for rule in builtin_rules() if rule.id in {GENERIC, TYPED, BACKTICK}}
     for finding in scan_text(text):
-        if finding.rule_id != GENERIC:
+        rule = rules.get(finding.rule_id)
+        if rule is None:
             continue
         match = rule.regex.match(text, finding.offset)
-        if match is not None and value in match.group(0):
+        value_start = text.rfind(value)
+        if (
+            match is not None
+            and value_start >= 0
+            and match.start() <= value_start
+            and match.end() >= value_start + len(value)
+        ):
             return True
     return False
 
 
+def test_a_backtick_literal_assignment_is_found() -> None:
+    assert BACKTICK in rule_ids(scan_text(f"{API_TOKEN} = `{LONG_VALUE}`"))
+
+
+def test_assignment_match_checks_the_actual_value_position() -> None:
+    text = f"{API_TOKEN} = '{LONG_VALUE}'\nnote = '{LONG_VALUE}'"
+    assert not _generic_match_covers(text, LONG_VALUE)
+
+
 @pytest.mark.parametrize("prefix", ["", "+", "export "])
 @pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
-def test_a_typed_declaration_opening_an_object_is_quiet(prefix: str, name: str) -> None:
-    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{\n}}") == []
-    assert scan_text(f"{prefix}const {name}: {COLLECTION} = {{}}") == []
+def test_a_typed_declaration_opening_an_object_keeps_its_finding(prefix: str, name: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f"{prefix}const {name}: {COLLECTION} = {{\n}}"))
+    assert GENERIC in rule_ids(scan_text(f"{prefix}const {name}: {COLLECTION} = {{}}"))
+
+
+def test_a_credential_shaped_type_in_an_empty_object_keeps_the_finding() -> None:
+    text = f"const {API_TOKEN}: {LONG_VALUE} = {{}}"
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("prefix", ["", "+"])
 @pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
-def test_a_generic_type_in_a_schema_field_is_quiet(prefix: str, name: str) -> None:
+def test_a_generic_type_in_a_schema_field_preserves_the_baseline(prefix: str, name: str) -> None:
     slug = (
         "design-" + TOKENS.lower() if name.startswith("Design") else TOKENS[:-1].lower() + "-sets"
     )
-    assert scan_text(f"{prefix}    '{slug}': {name}Select<false> | {name}Select<true>;") == []
+    text = f"{prefix}    '{slug}': {name}Select<false> | {name}Select<true>;"
+    findings = rule_ids(scan_text(text))
+    assert (GENERIC in findings) == name.startswith("Design")
     assert scan_text(f"{prefix}{TOKENS.lower()}: Array<{name}>;") == []
+
+
+def test_a_credential_named_union_keeps_the_baseline_finding() -> None:
+    text = f"{API_TOKEN}: {COLLECTION}Select<false> | {COLLECTION}Select<true>;"
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
@@ -420,7 +450,8 @@ def test_a_typed_object_beyond_the_inspection_limit_fails_closed() -> None:
 
 def test_a_literal_after_a_closed_typed_object_does_not_match_its_declaration() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\nconst note = '{LONG_VALUE}'"
-    assert GENERIC not in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(scan_text(text))
+    assert not _generic_match_covers(text, LONG_VALUE)
 
 
 @pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
@@ -507,7 +538,7 @@ def test_a_dotted_value_that_is_not_a_content_key_stays_a_finding(value: str) ->
     ],
 )
 def test_a_value_that_only_resembles_code_stays_a_finding(text: str) -> None:
-    assert GENERIC in rule_ids(scan_text(text))
+    assert {GENERIC, TYPED} & rule_ids(scan_text(text))
 
 
 def test_a_finding_reports_kind_and_position_but_not_the_value() -> None:
@@ -616,6 +647,16 @@ def test_findings_are_truncated_with_a_marker() -> None:
     findings = scan_text((FAKE_TOKEN + "\n") * (MAX_FINDINGS + 50))
     assert len(findings) == MAX_FINDINGS + 1
     assert findings[-1].rule_id == TRUNCATED_RULE
+
+
+def test_dense_typed_assignments_block_with_a_truncation_marker(tmp_path, capsys) -> None:
+    from guardline.cli import main
+
+    text = (f"{API_TOKEN}: {COLLECTION} = '{LONG_VALUE}'\n") * (MAX_FINDINGS + 50)
+    path = tmp_path / "dense.txt"
+    path.write_text(text, encoding="utf-8")
+    assert main(["scan", "--mode", "block", str(path)]) == 1
+    assert TRUNCATED_RULE in capsys.readouterr().out
 
 
 def test_families_option_limits_the_rules() -> None:

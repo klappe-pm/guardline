@@ -96,7 +96,7 @@ families: attribution, token
 disabled rules: none
 rule files: none
 exclude: none
-active rules: 29
+active rules: 31
 note: guardline hook reads only the file named by its --config option.
 ```
 

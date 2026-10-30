@@ -33,15 +33,15 @@ def test_rule_counts_in_the_documents_match_the_rules() -> None:
     per_family = {
         f: sum(1 for r in rules if r.family == f) for f in ("attribution", "env-dump", "token")
     }
-    assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 14, 20)
+    assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 14, 22)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert f"img.shields.io/badge/rules-{len(rules)}-" in readme
     assert f"**{len(rules)} built-in rules in three families.**" in readme
-    assert "Agent attribution (9), environment dumps (14) and token-shaped values (20)" in readme
+    assert "Agent attribution (9), environment dumps (14) and token-shaped values (22)" in readme
     reference = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
     assert f"all {len(rules)} built-in rules" in reference
     assert (
-        "9 attribution rules, 14 environment dump rules and 20 token-shaped value rules"
+        "9 attribution rules, 14 environment dump rules and 22 token-shaped value rules"
         in reference
     )
 
