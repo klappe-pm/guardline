@@ -740,6 +740,17 @@ def test_findings_across_many_leaves_are_capped() -> None:
     assert findings[-1].rule_id == "guardline-findings-truncated"
 
 
+def test_payload_limit_reports_truncation_even_when_paths_deduplicate() -> None:
+    fields = {
+        f"field_{index}": f"{API_TOKEN}: str = '{LONG_VALUE}'"
+        for index in range(MAX_FINDINGS + 1)
+    }
+    fields["last"] = FAKE_TOKEN
+    findings = scan_payload({"tool_name": "mcp", "tool_input": fields})
+    assert TRUNCATED_RULE in rule_ids(findings)
+    assert "token-github-token" not in rule_ids(findings)
+
+
 # one value at the documented limit scans quickly ------------------------------------------------
 
 

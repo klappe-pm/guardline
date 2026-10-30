@@ -48,6 +48,7 @@ All notable changes to this project are documented in this file. The format foll
 ### Fixed
 
 - `token-typed-assignment` detects some typed literal assignments without changing the original generic pattern. A separate rule detects backtick assignments. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover credential controls and ambiguous public metadata.
+- Payload scans report truncation when the raw finding limit stops inspection, even if repeated source labels are deduplicated afterward.
 
 ### Security
 

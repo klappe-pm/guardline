@@ -17,7 +17,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from guardline.engine import ATTRIBUTION_FAMILY, CONFIG_EDIT_RULE, Scanner
+from guardline.engine import ATTRIBUTION_FAMILY, CONFIG_EDIT_RULE, TRUNCATED_RULE, Scanner
 from guardline.model import ENGINE_FAMILY, Finding
 
 DENY_CODE = 2
@@ -53,6 +53,8 @@ def deny_reason(findings: list[Finding]) -> str:
         f"guardline blocked this tool call with {len(findings)} finding(s): {text}. "
         "Remove the flagged content and retry."
     )
+    if any(f.rule_id == TRUNCATED_RULE for f in findings[MAX_LISTED:]):
+        reason += " guardline-findings-truncated: The scan may be incomplete."
     if any(f.family == ATTRIBUTION_FAMILY for f in findings):
         reason += (
             " To quote a third party's attribution inside a closed fenced code block, "
