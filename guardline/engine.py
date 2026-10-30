@@ -113,6 +113,8 @@ def _safe_type_body(text: str, start: int) -> bool:
                 index = close + 2
                 continue
             return False
+        elif char == "+":
+            return False
         elif char in "\"'`":
             quote = char
             index += 1
