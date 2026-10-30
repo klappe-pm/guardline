@@ -19,7 +19,7 @@ Index: [How-To Guides](how-to-guides/README.md).
 
 ## Reference
 
-Lookup pages that describe the machinery as it is. [CLI](reference/cli.md) lists every subcommand, option and exit status, [Configuration](reference/configuration.md) lists every key in `guardline.toml`, [Rule File Format](reference/rule-file-format.md) lists every field of a rule, [Rules](reference/rules.md) lists all 43 built-in rules, [Hook Protocol](reference/hook-protocol.md) describes the payload and the decision, [Python API](reference/python-api.md) lists every public function and class, [Package Data](reference/package-data.md) describes the shipped rule files and how they are read, and [Source Layout](reference/source-layout.md) maps every module and test file. Index: [Reference](reference/README.md).
+Lookup pages that describe the machinery as it is. [CLI](reference/cli.md) lists every subcommand, option and exit status, [Configuration](reference/configuration.md) lists every key in `guardline.toml`, [Rule File Format](reference/rule-file-format.md) lists every field of a rule, [Rules](reference/rules.md) lists all 45 built-in rules, [Hook Protocol](reference/hook-protocol.md) describes the payload and the decision, [Python API](reference/python-api.md) lists every public function and class, [Package Data](reference/package-data.md) describes the shipped rule files and how they are read, and [Source Layout](reference/source-layout.md) maps every module and test file. Index: [Reference](reference/README.md).
 
 ## Explanation
 

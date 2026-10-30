@@ -107,7 +107,8 @@ These are cases a person would call a violation and Guardline does not flag. Eac
 - **Values split, encoded or separated.** A token split across lines, with a separator inserted, or base64 encoded is not matched. Shell quoting is decoded for commands, so `gh''p_...` is matched; this does not extend to text.
 - **Formats not in the list.** A credential with no known prefix, label or shape is not found. The generic rules look for a key, token, secret or password name (optionally quoted) next to a long literal, or a long hex or base64 run next to such a word. A bare flag value such as `--token VALUE` is not matched unless the value has a known shape.
 - **Headerless private keys.** The key rule matches the PEM or PGP header line. A body pasted without it is not matched.
-- **False positives.** The generic rules fire on non-secrets that look the same: a long identifier assigned to a name that contains `key`, or a hash next to the word `token`. Disable the rule for a path or in the configuration when that happens.
+- **False positives.** The generic rules fire on non-secrets that look the same: a long identifier assigned to a name that contains `key`, or a hash next to the word `token`. Public copy references and type annotations can have the same shape as a credential and remain findings; see [Rules](../reference/rules.md).
+- **Typed assignments.** A separate bounded pattern catches some literals following a type annotation. It is not a TypeScript parser, does not inspect complete initializers, and can miss values beyond its bounds or after an earlier matching literal. A generic finding can point at the annotation instead of the value.
 
 ### Structure
 

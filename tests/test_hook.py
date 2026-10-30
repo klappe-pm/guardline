@@ -14,7 +14,7 @@ import pytest
 
 from guardline import Scanner
 from guardline.cli import main
-from guardline.engine import DEFAULT_MAX_TEXT_CHARS
+from guardline.engine import DEFAULT_MAX_TEXT_CHARS, MAX_FINDINGS, TRUNCATED_RULE
 from guardline.hook import HookResult, deny_reason, run_hook, startup_failure
 from tests.helpers import assert_absent
 from tests.samples import FAKE_TOKEN, TRAILER
@@ -45,6 +45,34 @@ def test_a_dump_is_denied_with_json_and_exit_zero() -> None:
     assert decision["hookEventName"] == "PreToolUse"
     assert decision["permissionDecision"] == "deny"
     assert "env-dump-printenv" in decision["permissionDecisionReason"]
+
+
+def test_a_truncated_payload_is_denied_after_aliased_findings() -> None:
+    key = "api_" + "token"
+    value = "abcdefghijklmnop" + "1234"
+    fields = {f"field_{index}": f"{key}: str = '{value}'" for index in range(MAX_FINDINGS + 1)}
+    fields["last"] = FAKE_TOKEN
+    body = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "mcp", "tool_input": fields})
+    decision = json.loads(run_hook(body, Scanner()).stdout)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    assert TRUNCATED_RULE in decision["permissionDecisionReason"]
+
+
+def test_hook_reports_hidden_truncation_without_exposing_values() -> None:
+    key = "api_" + "token"
+    value = "abcdefghijklmnop" + "1234"
+    fields = {
+        f"field_{index}": f"{' ' * (index % 12)}{key}: str = '{value}'"
+        for index in range(MAX_FINDINGS + 1)
+    }
+    fields["last"] = FAKE_TOKEN
+    body = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "mcp", "tool_input": fields})
+    result = run_hook(body, Scanner())
+    decision = json.loads(result.stdout)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    assert TRUNCATED_RULE in decision["permissionDecisionReason"]
+    assert_absent(value, result.stdout, result.stderr)
+    assert_absent(FAKE_TOKEN, result.stdout, result.stderr)
 
 
 def test_exit_code_style_denies_with_two_and_empty_stdout() -> None:
@@ -259,7 +287,9 @@ def test_a_finding_from_a_rule_is_named_by_id_and_position_only() -> None:
 
 def test_a_deeply_nested_payload_is_named_as_such() -> None:
     # Python 3.12 and newer parse 5000 levels, so the parser only gives up at a much greater depth.
-    stdin = '{"tool_name": "Bash", "tool_input": {"x": ' + "[" * 100_000 + "1" + "]" * 100_000 + "}}"
+    stdin = (
+        '{"tool_name": "Bash", "tool_input": {"x": ' + "[" * 100_000 + "1" + "]" * 100_000 + "}}"
+    )
     reason = reason_of(run_hook(stdin, Scanner()))
     assert "nests too deeply to parse" in reason
     assert "scanner failed" not in reason

@@ -18,6 +18,7 @@ from guardline.engine import (
     is_authoring_command,
     strip_value_options,
 )
+from guardline.rules import builtin_rules
 from guardline.shell import SimpleCommand
 from tests.helpers import rule_ids
 from tests.samples import (
@@ -178,6 +179,368 @@ def test_token_look_alikes_are_quiet(text: str) -> None:
     assert scan_text(text) == []
 
 
+# tokens: type identifiers and content keys are not credentials ------------------------------
+
+GENERIC = "token-generic-assignment"
+TYPED = "token-typed-assignment"
+BACKTICK = "token-backtick-assignment"
+TOKENS = "Tok" + "ens"
+KEY = "K" + "ey"
+PASSWORD = "pass" + "word"
+API_TOKEN = "API_" + "TOKEN"
+COLLECTION = "Collection" + "Config"
+LONG_VALUE = "abcdefghijklmnop" + "1234"
+COPY_ATTRIBUTES = (f"title{KEY}", f"text{KEY}", "data-copy-" + KEY.lower())
+
+
+def _generic_match_covers(text: str, value: str) -> bool:
+    """Whether an assignment finding, rebuilt at its offset, spans ``value``.
+
+    A finding reports where the matched name starts, never the value, so the match is
+    rebuilt from the rule's own pattern to prove it spans the final value occurrence.
+    """
+    rules = {rule.id: rule for rule in builtin_rules() if rule.id in {GENERIC, TYPED, BACKTICK}}
+    for finding in scan_text(text):
+        rule = rules.get(finding.rule_id)
+        if rule is None:
+            continue
+        match = rule.regex.match(text, finding.offset)
+        value_start = text.rfind(value)
+        if (
+            match is not None
+            and value_start >= 0
+            and match.start() <= value_start
+            and match.end() >= value_start + len(value)
+        ):
+            return True
+    return False
+
+
+def test_a_backtick_literal_assignment_is_found() -> None:
+    assert BACKTICK in rule_ids(scan_text(f"{API_TOKEN} = `{LONG_VALUE}`"))
+
+
+def test_assignment_match_checks_the_actual_value_position() -> None:
+    text = f"{API_TOKEN} = '{LONG_VALUE}'\nnote = '{LONG_VALUE}'"
+    assert not _generic_match_covers(text, LONG_VALUE)
+
+
+@pytest.mark.parametrize("prefix", ["", "+", "export "])
+@pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_typed_declaration_opening_an_object_keeps_its_finding(prefix: str, name: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f"{prefix}const {name}: {COLLECTION} = {{\n}}"))
+    assert GENERIC in rule_ids(scan_text(f"{prefix}const {name}: {COLLECTION} = {{}}"))
+
+
+def test_a_credential_shaped_type_in_an_empty_object_keeps_the_finding() -> None:
+    text = f"const {API_TOKEN}: {LONG_VALUE} = {{}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("prefix", ["", "+"])
+@pytest.mark.parametrize("name", [f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_generic_type_in_a_schema_field_preserves_the_baseline(prefix: str, name: str) -> None:
+    slug = (
+        "design-" + TOKENS.lower() if name.startswith("Design") else TOKENS[:-1].lower() + "-sets"
+    )
+    text = f"{prefix}    '{slug}': {name}Select<false> | {name}Select<true>;"
+    findings = rule_ids(scan_text(text))
+    assert (GENERIC in findings) == name.startswith("Design")
+    assert scan_text(f"{prefix}{TOKENS.lower()}: Array<{name}>;") == []
+
+
+def test_a_credential_named_union_keeps_the_baseline_finding() -> None:
+    text = f"{API_TOKEN}: {COLLECTION}Select<false> | {COLLECTION}Select<true>;"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+@pytest.mark.parametrize(
+    "path",
+    [
+        "pages.referrals.good-work-starts-with-a-good",
+        "pages.referrals.make-an-introduction",
+        "pages.referrals.senior-advisory-is-500-to-1",
+        "pages.forms.labels.current-" + PASSWORD,
+        "pages.forms.labels." + PASSWORD,
+        "pages.home.monogram",
+        "global.site.email",
+        "pages.contact.form.rate",
+    ],
+)
+def test_a_content_key_of_dotted_words_retains_the_generic_finding(
+    attribute: str, path: str
+) -> None:
+    text = f'<PageIntro {attribute}="{path}" />'
+    assert GENERIC in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(
+        scan_payload({"tool_name": "Write", "tool_input": {"content": text}})
+    )
+    assert GENERIC in rule_ids(scan_text(f'  "{attribute}": "{path}",'))
+
+
+def test_public_copy_property_inside_a_jsx_prop_retains_the_generic_finding() -> None:
+    path = "pages.contact.form.rate"
+    text = f'<Input props={{{{"data-copy-key": "{path}"}}}} />'
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, "api" + KEY, PASSWORD])
+@pytest.mark.parametrize(
+    "initializer",
+    [
+        f"'{LONG_VALUE}'",
+        f'"{LONG_VALUE}"',
+        f"`{LONG_VALUE}`",
+        f"\n  '{LONG_VALUE}'",
+        f"/* value */ '{LONG_VALUE}'",
+        f"{{ value: '{LONG_VALUE}' }}",
+    ],
+)
+def test_a_type_annotation_does_not_hide_a_credential_initializer(
+    name: str, initializer: str
+) -> None:
+    text = f"const {name}: {COLLECTION} = {initializer}"
+    assert _generic_match_covers(text, LONG_VALUE)
+    assert _generic_match_covers(f"+{text}", LONG_VALUE)
+
+
+def test_a_python_annotation_does_not_hide_a_credential_initializer() -> None:
+    assert _generic_match_covers(f'api_{KEY.lower()}: str = "{LONG_VALUE}"', LONG_VALUE)
+
+
+@pytest.mark.parametrize("shape", ["direct", "nested", "array"])
+def test_a_typed_object_does_not_hide_a_credential_on_its_opening_line(shape: str) -> None:
+    fields = {
+        "direct": f"value: '{LONG_VALUE}'",
+        "nested": f"config: {{ value: '{LONG_VALUE}' }}",
+        "array": f"fields: [{{ value: '{LONG_VALUE}' }}]",
+    }
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{ {fields[shape]} }}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_a_typed_object_with_short_strings_keeps_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{ slug: 'design', fields: [] }}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_named_credential_inside_a_typed_object_is_found_by_its_own_name() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n  {PASSWORD}: '{LONG_VALUE}',\n}}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_an_unnamed_literal_on_a_later_line_of_a_typed_object_is_found() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n  value: '{LONG_VALUE}',\n}}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+def test_a_later_literal_in_a_typed_object_is_found_after_a_short_string() -> None:
+    text = (
+        f"export const Design{TOKENS}: {COLLECTION} = {{\n"
+        f"  label: 'short',\n  value: '{LONG_VALUE}',\n}}"
+    )
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, f"Design{TOKENS}", f"{TOKENS[:-1]}Sets"])
+def test_a_late_credential_in_a_typed_object_keeps_the_baseline_finding(name: str) -> None:
+    text = f"export const {name}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: '{LONG_VALUE}',\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_credential_in_longer_quoted_text_keeps_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += f"label: 'prefix {LONG_VALUE} suffix',\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_an_expression_in_a_typed_object_keeps_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: 'short' + 'another',\n}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_join_expression_in_a_typed_object_keeps_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: ['fragmentone', 'fragmenttwo'].join(''),\n}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "['fragmentone', 'fragmenttwo']['join']('')",
+        "['fragmentone', 'fragmenttwo']?.join('')",
+        "['fragmentone', 'fragmenttwo']?.['join']('')",
+        "combine('fragmentone', 'fragmenttwo')",
+        "String['fromCharCode'](65, 66)",
+        "(['fragmentone', 'fragmenttwo'])['join']('')",
+        "(combine)('fragmentone', 'fragmenttwo')",
+        "(String['fromCharCode'])(65, 66)",
+    ],
+)
+def test_computed_string_expressions_keep_the_baseline_finding(expression: str) -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: {expression},\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "flag && combine('fragmentone', 'fragmenttwo')",
+        "await combine('fragmentone', 'fragmenttwo')",
+        "flag ? combine('fragmentone', 'fragmenttwo') : 'short'",
+        "short || combine('fragmentone', 'fragmenttwo')",
+        "unknownValue",
+        "{ ...unknownValue }",
+        "1 * 2",
+        "`short${unknownValue}`",
+        "'short\\u0041'",
+        "/* comment */ 'short'",
+        "{ nested: [true, { value: unknownValue }] }",
+        "1234567890123456",
+        "{ abcdefghijklmnop: true }",
+        "'short'",
+        "7",
+    ],
+)
+def test_unsupported_typed_object_values_keep_the_baseline_finding(expression: str) -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += f"value: {expression},\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_nested_literals_keep_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: { items: ['', true, null, false] },\n}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("key", ["'short'", "short"])
+def test_object_keys_keep_the_baseline_finding(key: str) -> None:
+    text = f"export const {API_TOKEN}: {COLLECTION} = {{\n" + " " * 201
+    text += f"{key}: true,\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("name", [API_TOKEN, PASSWORD, f"Design{TOKENS}"])
+def test_a_short_value_in_a_typed_object_keeps_the_baseline_finding(name: str) -> None:
+    text = f"export const {name}: {COLLECTION} = {{\n" + " " * 201
+    text += "value: 'short',\n}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_typed_object_followed_by_an_expression_keeps_the_baseline_finding() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\n&& '{LONG_VALUE}'"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_an_unclosed_typed_object_fails_closed() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_typed_object_beyond_the_inspection_limit_fails_closed() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 65536 + "}"
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_literal_after_a_closed_typed_object_does_not_match_its_declaration() -> None:
+    text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\nconst note = '{LONG_VALUE}'"
+    assert GENERIC in rule_ids(scan_text(text))
+    assert not _generic_match_covers(text, LONG_VALUE)
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+@pytest.mark.parametrize(
+    "value",
+    ["example.service.private.v4lue", "Example.Service.Private.Value", "example.servicevalue"],
+)
+def test_a_dotted_value_with_a_token_trait_stays_a_finding(attribute: str, value: str) -> None:
+    text = f'<Heading {attribute}="{value}" />'
+    assert GENERIC in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(
+        scan_payload({"tool_name": "Write", "tool_input": {"content": text}})
+    )
+
+
+def test_a_passphrase_of_dotted_lowercase_words_is_found() -> None:
+    assert GENERIC in rule_ids(scan_text(f'{PASSWORD} = "correct.horse.battery.staple"'))
+    assert GENERIC in rule_ids(scan_text(f'{PASSWORD} = "correct-horse-battery-staple"'))
+
+
+@pytest.mark.parametrize("name", [PASSWORD, "api_secret"])
+@pytest.mark.parametrize("value", ["correct.horse.battery.staple", "pages.forms.labels.password"])
+@pytest.mark.parametrize("quote", ["", '"'])
+def test_dotted_credentials_are_found_outside_public_copy_attributes(
+    name: str, value: str, quote: str
+) -> None:
+    text = f"{name} = {quote}{value}{quote}"
+    assert _generic_match_covers(text, value)
+    payload = {"tool_name": "Write", "tool_input": {"content": text}}
+    assert GENERIC in rule_ids(scan_payload(payload))
+
+
+@pytest.mark.parametrize("suffix", [" = marker", "<marker>;"])
+def test_a_credential_with_a_code_like_suffix_is_found(suffix: str) -> None:
+    text = f"api_secret: {LONG_VALUE}{suffix}"
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+def test_public_copy_attribute_does_not_exempt_an_unrelated_namespace(attribute: str) -> None:
+    text = f'<Heading {attribute}="correct.horse.battery.staple" />'
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+def test_a_prefixed_attribute_does_not_inherit_the_public_copy_exception() -> None:
+    text = f'<Heading private-{COPY_ATTRIBUTES[0]}="pages.forms.labels.password" />'
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+def test_a_vendor_token_in_a_content_attribute_is_found(attribute: str) -> None:
+    text = f'<Heading {attribute}="{FAKE_TOKEN}" />'
+    assert "token-github-token" in rule_ids(scan_text(text))
+    payload = {"tool_name": "Write", "tool_input": {"content": text}}
+    assert "token-github-token" in rule_ids(scan_payload(payload))
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Pages.Referrals.Good-Work-Starts",
+        "pages.referrals.h2-heading-text",
+        "pages.referrals.good-work.",
+        "pages.referrals..good-work",
+        "pages.referrals.good--work",
+        "ya29.a0afh6smbx-abcdefghijk.x",
+    ],
+)
+def test_a_dotted_value_that_is_not_a_content_key_stays_a_finding(value: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f'"{PASSWORD.capitalize()}": "{value}"'))
+    if "-" in value:  # an unquoted chain of plain identifiers was already a reference
+        assert GENERIC in rule_ids(scan_text(f"{KEY}={value}"))
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f"{TOKENS.lower()}: " + "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=",
+        f"{TOKENS[:-1].lower()}: " + "a" * 128 + "=",
+        f"{TOKENS.lower()}: Design{TOKENS}Select<br>",
+        f"{KEY}=ya29.a0AfH6SMBx-abcdefghijk",
+        f"const {TOKENS}: Foo = '{LONG_VALUE[:16]}'",
+        f"{PASSWORD}: {LONG_VALUE} == other",
+    ],
+)
+def test_a_value_that_only_resembles_code_stays_a_finding(text: str) -> None:
+    assert {GENERIC, TYPED} & rule_ids(scan_text(text))
+
+
 def test_a_finding_reports_kind_and_position_but_not_the_value() -> None:
     text = f"line\nexport T={FAKE_TOKEN}\n"
     finding = next(f for f in scan_text(text) if f.rule_id == "token-github-token")
@@ -286,6 +649,16 @@ def test_findings_are_truncated_with_a_marker() -> None:
     assert findings[-1].rule_id == TRUNCATED_RULE
 
 
+def test_dense_typed_assignments_block_with_a_truncation_marker(tmp_path, capsys) -> None:
+    from guardline.cli import main
+
+    text = (f"{API_TOKEN}: {COLLECTION} = '{LONG_VALUE}'\n") * (MAX_FINDINGS + 50)
+    path = tmp_path / "dense.txt"
+    path.write_text(text, encoding="utf-8")
+    assert main(["scan", "--mode", "block", str(path)]) == 1
+    assert TRUNCATED_RULE in capsys.readouterr().out
+
+
 def test_families_option_limits_the_rules() -> None:
     scanner = Scanner(families=["token"])
     assert scanner.scan_text(TRAILER) == []
@@ -365,6 +738,17 @@ def test_findings_across_many_leaves_are_capped() -> None:
     findings = Scanner().scan_payload(payload)
     assert len(findings) <= MAX_FINDINGS + 1
     assert findings[-1].rule_id == "guardline-findings-truncated"
+
+
+def test_payload_limit_reports_truncation_even_when_paths_deduplicate() -> None:
+    fields = {
+        f"field_{index}": f"{API_TOKEN}: str = '{LONG_VALUE}'"
+        for index in range(MAX_FINDINGS + 1)
+    }
+    fields["last"] = FAKE_TOKEN
+    findings = scan_payload({"tool_name": "mcp", "tool_input": fields})
+    assert TRUNCATED_RULE in rule_ids(findings)
+    assert "token-github-token" not in rule_ids(findings)
 
 
 # one value at the documented limit scans quickly ------------------------------------------------

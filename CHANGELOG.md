@@ -45,6 +45,11 @@ All notable changes to this project are documented in this file. The format foll
 - Ruff checks the `S` and `RUF` rule sets as well.
 - The configuration reference says that dictionary keys of a tool input count toward the `max_text_chars` bound of the hook, as the security model already did.
 
+### Fixed
+
+- `token-typed-assignment` detects some typed literal assignments without changing the original generic pattern. A separate rule detects backtick assignments. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover credential controls and ambiguous public metadata.
+- Payload scans report truncation when the raw finding limit stops inspection, even if repeated source labels are deduplicated afterward.
+
 ### Security
 
 - An escaped or quoted `;`, `|`, `&`, `<`, `>` or parenthesis is now a word, not an operator, as in a shell. `find . -exec echo a \; -exec printenv \;` used to end the command at the `\;` and miss the second `-exec`; `echo a \; printenv` is now one `echo` command with a literal `;` argument. This closes the known gap listed for a second `find -exec`.
