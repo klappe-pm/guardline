@@ -47,7 +47,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
-- `token-generic-assignment` detects typed literal assignments and retains findings for ambiguous type annotations. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover credential controls and ambiguous public metadata.
+- `token-typed-assignment` detects some typed literal assignments without changing the original generic pattern. A separate rule detects backtick assignments. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover credential controls and ambiguous public metadata.
 
 ### Security
 
