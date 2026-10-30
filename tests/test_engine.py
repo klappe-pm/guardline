@@ -383,10 +383,17 @@ def test_unsupported_typed_object_values_keep_the_baseline_finding(expression: s
     assert GENERIC in rule_ids(scan_text(text))
 
 
-def test_nested_short_literals_are_safe_in_a_typed_object() -> None:
+def test_nested_literals_keep_the_baseline_finding() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{\n" + " " * 201
     text += "value: { items: ['', true, null, false] },\n}"
-    assert GENERIC not in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(scan_text(text))
+
+
+@pytest.mark.parametrize("key", ["'short'", "short"])
+def test_object_keys_keep_the_baseline_finding(key: str) -> None:
+    text = f"export const {API_TOKEN}: {COLLECTION} = {{\n" + " " * 201
+    text += f"{key}: true,\n}}"
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("name", [API_TOKEN, PASSWORD, f"Design{TOKENS}"])

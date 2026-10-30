@@ -47,7 +47,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
-- `token-generic-assignment` distinguishes TypeScript type identifiers from empty literal structures while retaining findings for nonempty values, expressions and typed-object inspection that cannot finish safely. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover the false positives and credential controls.
+- `token-generic-assignment` distinguishes TypeScript type identifiers in empty objects while retaining findings for nonempty objects, expressions and typed-object inspection that cannot finish safely. Quoted and unquoted dotted password and secret assignments remain findings. Vendor token rules are unchanged. Regression tests cover the false positives and credential controls.
 
 ### Security
 
