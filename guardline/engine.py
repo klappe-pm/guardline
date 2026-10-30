@@ -260,7 +260,15 @@ class Scanner:
             if not include(rule):
                 continue
             for match in rule.regex.finditer(text):
-                if rule.unless_regex is not None and rule.unless_regex.search(match.group(0)):
+                if (
+                    rule.unless_regex is not None
+                    and rule.unless_regex.search(match.group(0))
+                    and (
+                        rule.id != "token-generic-assignment"
+                        or not match.group(0).upper().startswith(("PASSWORD", "SECRET"))
+                        or re.match(r"(?i)^secret[ \t]*:[ \t]*//", match.group(0))
+                    )
+                ):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
                     continue
@@ -295,15 +303,17 @@ class Scanner:
             source,
         )
 
-    def _finish(self, findings: list[Finding], source: str) -> list[Finding]:
+    def _finish(
+        self, findings: list[Finding], source: str, *, truncated: bool = False
+    ) -> list[Finding]:
         unique = {(f.rule_id, f.offset, f.source): f for f in findings}
         ordered = sorted(unique.values(), key=lambda f: (f.source, f.offset, f.rule_id))
-        if len(ordered) > MAX_FINDINGS:
+        if truncated or len(ordered) > MAX_FINDINGS:
             ordered = ordered[:MAX_FINDINGS]
             ordered.append(
                 self._engine_finding(
                     TRUNCATED_RULE,
-                    f"More than {MAX_FINDINGS} findings; the rest are not listed.",
+                    "The findings limit was reached; the scan may be incomplete.",
                     source,
                 )
             )
@@ -574,7 +584,7 @@ class Scanner:
                 findings.extend(self.scan_text(value, path, include_attribution=False))
             if len(findings) > MAX_FINDINGS:
                 break
-        return self._finish(findings, "tool_input")
+        return self._finish(findings, "tool_input", truncated=len(findings) > MAX_FINDINGS)
 
 
 def scan_text(text: str, **options: Any) -> list[Finding]:

@@ -7,7 +7,7 @@ Reference pages describe the machinery as it is, organised around the thing desc
 - [CLI](cli.md): every subcommand and option of the `guardline` command, including `init` and `config show`, and its exit statuses.
 - [Configuration](configuration.md): every key in `guardline.toml` and `[tool.guardline]`, and how the file is found.
 - [Rule File Format](rule-file-format.md): every field of a rule and every check the loader makes.
-- [Rules](rules.md): all 43 built-in rules by family, with scope and description.
+- [Rules](rules.md): all 45 built-in rules by family, with scope and description.
 - [Hook Protocol](hook-protocol.md): the payload the hook reads, the fields it judges and the decision it writes.
 - [Python API](python-api.md): every public function and class of the package.
 - [Package Data](package-data.md): the shipped rule files, how they are read and how they are built into the wheel.
