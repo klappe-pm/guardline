@@ -242,7 +242,13 @@ def test_a_content_key_of_dotted_words_is_quiet(attribute: str, path: str) -> No
     text = f'<PageIntro {attribute}="{path}" />'
     assert scan_text(text) == []
     assert scan_payload({"tool_name": "Write", "tool_input": {"content": text}}) == []
-    assert scan_text(f'  "{attribute}": "{path}",') == []
+    assert GENERIC in rule_ids(scan_text(f'  "{attribute}": "{path}",'))
+
+
+def test_public_copy_property_inside_a_jsx_prop_is_quiet() -> None:
+    path = "pages.contact.form.rate"
+    text = f'<Input props={{{{"data-copy-key": "{path}"}}}} />'
+    assert scan_text(text) == []
 
 
 @pytest.mark.parametrize("name", [API_TOKEN, "api" + KEY, PASSWORD])
@@ -295,6 +301,14 @@ def test_an_unnamed_literal_on_a_later_line_of_a_typed_object_is_found() -> None
     assert _generic_match_covers(text, LONG_VALUE)
 
 
+def test_a_later_literal_in_a_typed_object_is_found_after_a_short_string() -> None:
+    text = (
+        f"export const Design{TOKENS}: {COLLECTION} = {{\n"
+        f"  label: 'short',\n  value: '{LONG_VALUE}',\n}}"
+    )
+    assert _generic_match_covers(text, LONG_VALUE)
+
+
 def test_a_literal_after_a_closed_typed_object_does_not_match_its_declaration() -> None:
     text = f"export const Design{TOKENS}: {COLLECTION} = {{}}\nconst note = '{LONG_VALUE}'"
     assert GENERIC not in rule_ids(scan_text(text))
@@ -320,11 +334,20 @@ def test_a_passphrase_of_dotted_lowercase_words_is_found() -> None:
 
 @pytest.mark.parametrize("name", [PASSWORD, "api_secret"])
 @pytest.mark.parametrize("value", ["correct.horse.battery.staple", "pages.forms.labels.password"])
-def test_dotted_credentials_are_found_outside_public_copy_attributes(name: str, value: str) -> None:
-    text = f'{name} = "{value}"'
+@pytest.mark.parametrize("quote", ["", '"'])
+def test_dotted_credentials_are_found_outside_public_copy_attributes(
+    name: str, value: str, quote: str
+) -> None:
+    text = f"{name} = {quote}{value}{quote}"
     assert _generic_match_covers(text, value)
     payload = {"tool_name": "Write", "tool_input": {"content": text}}
     assert GENERIC in rule_ids(scan_payload(payload))
+
+
+@pytest.mark.parametrize("suffix", [" = marker", "<marker>;"])
+def test_a_credential_with_a_code_like_suffix_is_found(suffix: str) -> None:
+    text = f"api_secret: {LONG_VALUE}{suffix}"
+    assert _generic_match_covers(text, LONG_VALUE)
 
 
 @pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)

@@ -50,17 +50,48 @@ _PUBLIC_COPY_ATTRIBUTE = re.compile(
     r"[:=][ \t]{0,8}(?P<quote>[\"'])(?:pages|global)"
     r"(?:\.[a-z0-9]+(?:-[a-z0-9]+)*){2,16}(?P=quote)"
 )
+_TYPE_OBJECT_DECLARATION = re.compile(
+    r"\+?[ \t]*(?:export[ \t]+)?(?:const|let|var)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*"
+    r"[ \t]*:[ \t]*[A-Z][A-Za-z0-9_$]*[ \t]*=[ \t]*\{(?:[^}\n]{0,200}\})?[ \t]*"
+)
+_TYPE_UNION_DECLARATION = re.compile(
+    r"\+?[ \t]*(?:'[A-Za-z0-9_-]+'|\"[A-Za-z0-9_-]+\"|[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"[ \t]*:[ \t]*(?P<type>[A-Z][A-Za-z0-9_$]*)<false>[ \t]*\|[ \t]*"
+    r"(?P=type)<true>;[ \t]*"
+)
 
 
 def _is_public_copy_attribute(text: str, match: re.Match[str]) -> bool:
     """Identify a known public-copy attribute containing a namespaced content path."""
     start = max(0, match.start() - 32)
     end = min(len(text), match.end() + 1)
+    context = text[max(0, match.start() - 1024) : match.start()]
+    opening = context.rfind("<")
+    if opening < 0 or context.rfind(">") > opening:
+        return False
+    if not re.match(r"<[A-Za-z][A-Za-z0-9_.:-]*\b", context[opening:]):
+        return False
     return any(
         start + item.start() <= match.start() < start + item.end()
         and start + item.end() == match.end()
         for item in _PUBLIC_COPY_ATTRIBUTE.finditer(text[start:end])
     )
+
+
+def _is_type_declaration(text: str, match: re.Match[str]) -> bool:
+    """Recognize complete typed declarations when no literal matched the rule."""
+    if "=" in match.group(0):
+        return False
+    start = text.rfind("\n", max(0, match.start() - 512), match.start()) + 1
+    if start == 0 and match.start() > 512:
+        return False
+    end = text.find("\n", match.end(), min(len(text), match.end() + 512))
+    if end < 0:
+        if len(text) - match.end() > 512:
+            return False
+        end = len(text)
+    line = text[start:end].rstrip("\r")
+    return bool(_TYPE_OBJECT_DECLARATION.fullmatch(line) or _TYPE_UNION_DECLARATION.fullmatch(line))
 
 
 _GIT_AUTHORING = frozenset(
@@ -278,9 +309,19 @@ class Scanner:
             if not include(rule):
                 continue
             for match in rule.regex.finditer(text):
-                if rule.unless_regex is not None and rule.unless_regex.search(match.group(0)):
+                if (
+                    rule.unless_regex is not None
+                    and rule.unless_regex.search(match.group(0))
+                    and (
+                        rule.id != "token-generic-assignment"
+                        or not match.group(0).upper().startswith(("PASSWORD", "SECRET"))
+                        or re.match(r"(?i)^secret[ \t]*:[ \t]*//", match.group(0))
+                    )
+                ):
                     continue
                 if rule.id == "token-generic-assignment" and _is_public_copy_attribute(text, match):
+                    continue
+                if rule.id == "token-generic-assignment" and _is_type_declaration(text, match):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
                     continue
