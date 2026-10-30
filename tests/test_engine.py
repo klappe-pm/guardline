@@ -342,6 +342,9 @@ def test_a_join_expression_in_a_typed_object_keeps_the_baseline_finding() -> Non
         "['fragmentone', 'fragmenttwo']?.['join']('')",
         "combine('fragmentone', 'fragmenttwo')",
         "String['fromCharCode'](65, 66)",
+        "(['fragmentone', 'fragmenttwo'])['join']('')",
+        "(combine)('fragmentone', 'fragmenttwo')",
+        "(String['fromCharCode'])(65, 66)",
     ],
 )
 def test_computed_string_expressions_keep_the_baseline_finding(expression: str) -> None:
