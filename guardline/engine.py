@@ -61,6 +61,8 @@ _TYPE_UNION_DECLARATION = re.compile(
 )
 _TOKEN_LITERAL = re.compile(r"[A-Za-z0-9_./+=-]{16,}")
 _IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*\Z")
+_METHOD_CALL = re.compile(r"[ \t\r\n]*\.[A-Za-z_$][A-Za-z0-9_$]*[ \t\r\n]*\(")
+_NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
 _TYPE_BODY_LIMIT = 65536
 _TYPE_BODY_DEPTH = 64
 
@@ -96,9 +98,19 @@ def _safe_type_body(text: str, start: int) -> bool:
         elif char == "}":
             depth -= 1
             if depth == 0:
-                return True
+                tail = text[index + 1 : end]
+                remaining = tail.lstrip()
+                if not remaining:
+                    return end == len(text)
+                if remaining.startswith(";"):
+                    return True
+                return "\n" in tail[: len(tail) - len(remaining)] and bool(
+                    _NEXT_DECLARATION.match(remaining)
+                )
             if depth < 0:
                 return False
+        elif char == "]" and _METHOD_CALL.match(text, index + 1, end):
+            return False
         elif char == "/":
             if text.startswith("//", index):
                 next_line = text.find("\n", index + 2, end)
@@ -133,6 +145,8 @@ def _safe_type_body(text: str, start: int) -> bool:
                     continue
                 index += 1
             if index >= end or _TOKEN_LITERAL.search(text[start_literal:index]):
+                return False
+            if _METHOD_CALL.match(text, index + 1, end):
                 return False
         index += 1
     return False
