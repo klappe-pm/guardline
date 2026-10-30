@@ -121,7 +121,7 @@ def _safe_type_body(text: str, start: int) -> bool:
                 if text[index] == "\\":
                     return False
                 if quote == "`" and text.startswith("${", index):
-                    if _TOKEN_LITERAL.fullmatch(text[start_literal:index]):
+                    if _TOKEN_LITERAL.search(text[start_literal:index]):
                         return False
                     close = text.find("}", index + 2, end)
                     if close < 0 or not _IDENTIFIER.fullmatch(text[index + 2 : close]):
@@ -130,7 +130,7 @@ def _safe_type_body(text: str, start: int) -> bool:
                     start_literal = index
                     continue
                 index += 1
-            if index >= end or _TOKEN_LITERAL.fullmatch(text[start_literal:index]):
+            if index >= end or _TOKEN_LITERAL.search(text[start_literal:index]):
                 return False
         index += 1
     return False
