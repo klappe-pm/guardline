@@ -66,8 +66,9 @@ _METHOD_CALL = re.compile(
     r"|(?:\?\.)?\[[ \t]*[\"'][A-Za-z_$][A-Za-z0-9_$]*[\"'][ \t]*\])[ \t\r\n]*\("
 )
 _PROPERTY_CALL = re.compile(
-    r"[ \t]*(?:new[ \t]+)?[A-Za-z_$][A-Za-z0-9_$]*[ \t]*(?:[.(\[]|\?\.)"
+    r"[ \t]*(?:\(|(?:new[ \t]+)?[A-Za-z_$][A-Za-z0-9_$]*[ \t]*(?:[.(\[]|\?\.))"
 )
+_SAFE_SIMPLE_ARROW = re.compile(r"[ \t]*\([ \t]*\)[ \t]*=>[ \t]*(?:true|false|null)(?=[ \t]*[,}])")
 _NEXT_DECLARATION = re.compile(r"(?:const|let|var|export|import|function|class)\b")
 _TYPE_BODY_LIMIT = 65536
 _TYPE_BODY_DEPTH = 64
@@ -116,7 +117,9 @@ def _safe_type_body(text: str, start: int) -> bool:
             if depth < 0:
                 return False
         elif (char == "]" and _METHOD_CALL.match(text, index + 1, end)) or (
-            char == ":" and _PROPERTY_CALL.match(text, index + 1, end)
+            char == ":"
+            and _PROPERTY_CALL.match(text, index + 1, end)
+            and not _SAFE_SIMPLE_ARROW.match(text, index + 1, end)
         ):
             return False
         elif char == "/":
