@@ -238,17 +238,21 @@ def test_a_generic_type_in_a_schema_field_is_quiet(prefix: str, name: str) -> No
         "pages.contact.form.rate",
     ],
 )
-def test_a_content_key_of_dotted_words_is_quiet(attribute: str, path: str) -> None:
+def test_a_content_key_of_dotted_words_retains_the_generic_finding(
+    attribute: str, path: str
+) -> None:
     text = f'<PageIntro {attribute}="{path}" />'
-    assert scan_text(text) == []
-    assert scan_payload({"tool_name": "Write", "tool_input": {"content": text}}) == []
+    assert GENERIC in rule_ids(scan_text(text))
+    assert GENERIC in rule_ids(
+        scan_payload({"tool_name": "Write", "tool_input": {"content": text}})
+    )
     assert GENERIC in rule_ids(scan_text(f'  "{attribute}": "{path}",'))
 
 
-def test_public_copy_property_inside_a_jsx_prop_is_quiet() -> None:
+def test_public_copy_property_inside_a_jsx_prop_retains_the_generic_finding() -> None:
     path = "pages.contact.form.rate"
     text = f'<Input props={{{{"data-copy-key": "{path}"}}}} />'
-    assert scan_text(text) == []
+    assert GENERIC in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("name", [API_TOKEN, "api" + KEY, PASSWORD])
