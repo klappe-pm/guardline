@@ -268,21 +268,84 @@ def test_a_credential_named_union_keeps_the_baseline_finding() -> None:
         "pages.contact.form.rate",
     ],
 )
-def test_a_content_key_of_dotted_words_retains_the_generic_finding(
-    attribute: str, path: str
-) -> None:
+def test_a_copy_key_in_a_known_attribute_is_quiet(attribute: str, path: str) -> None:
     text = f'<PageIntro {attribute}="{path}" />'
-    assert GENERIC in rule_ids(scan_text(text))
-    assert GENERIC in rule_ids(
+    assert GENERIC not in rule_ids(scan_text(text))
+    assert GENERIC not in rule_ids(
         scan_payload({"tool_name": "Write", "tool_input": {"content": text}})
     )
-    assert GENERIC in rule_ids(scan_text(f'  "{attribute}": "{path}",'))
 
 
-def test_public_copy_property_inside_a_jsx_prop_retains_the_generic_finding() -> None:
-    path = "pages.contact.form.rate"
-    text = f'<Input props={{{{"data-copy-key": "{path}"}}}} />'
-    assert GENERIC in rule_ids(scan_text(text))
+@pytest.mark.parametrize("quote", ['"', "'"])
+def test_a_copy_key_property_inside_a_jsx_prop_is_quiet(quote: str) -> None:
+    name = quote + "data-copy-" + KEY.lower() + quote
+    path = f"{quote}pages.contact.form.rate{quote}"
+    assert GENERIC not in rule_ids(
+        scan_text(f"<Input props={{{{ maxLength: 120, {name}: {path} }}}} />")
+    )
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES[:2])
+def test_other_copy_names_keep_the_finding_as_a_quoted_property(attribute: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f'  "{attribute}": "pages.contact.form.rate",'))
+
+
+@pytest.mark.parametrize("attribute", COPY_ATTRIBUTES)
+@pytest.mark.parametrize(
+    "value",
+    [
+        "other.contact.form.rate",
+        "Pages.contact.form.rate",
+        "pages.contact.form.r4te",
+        "pages.Contact.form.rate",
+    ],
+)
+def test_a_known_attribute_needs_a_copy_shaped_value(attribute: str, value: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f'<Heading {attribute}="{value}" />'))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "api" + KEY,
+        "site" + KEY,
+        "copy-" + KEY.lower(),
+        "private-text" + KEY,
+        PASSWORD,
+        "api_secret",
+    ],
+)
+def test_a_copy_key_outside_a_known_attribute_keeps_the_finding(name: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f'<Heading {name}="pages.contact.form.rate" />'))
+
+
+TOKEN_NAME = TOKENS.lower().removesuffix("s")
+CSS_VARIABLE = "--ds-font-body-family"
+
+
+@pytest.mark.parametrize("variable", [CSS_VARIABLE, "--ds-color-500-primary"])
+@pytest.mark.parametrize("quote", ['"', "'"])
+def test_a_css_variable_under_the_name_token_is_quiet(variable: str, quote: str) -> None:
+    assert GENERIC not in rule_ids(scan_text(f"  {{ {TOKEN_NAME}: {quote}{variable}{quote}, }},"))
+
+
+@pytest.mark.parametrize(
+    "name", ["api_" + TOKEN_NAME, "access-" + TOKEN_NAME, KEY.lower(), PASSWORD]
+)
+def test_a_css_variable_under_another_name_keeps_the_finding(name: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f"{name}: '{CSS_VARIABLE}'"))
+
+
+@pytest.mark.parametrize(
+    "value", ["--Ds-font-body-family", "--ds-font-b0dy-family", "-ds-font-body-family-value"]
+)
+def test_a_value_that_is_not_a_css_variable_keeps_the_finding(value: str) -> None:
+    assert GENERIC in rule_ids(scan_text(f"{TOKEN_NAME}: '{value}'"))
+
+
+def test_a_type_annotation_does_not_gain_the_copy_exception() -> None:
+    text = f'title{KEY}: string = "pages.contact.form.rate"'
+    assert TYPED in rule_ids(scan_text(text))
 
 
 @pytest.mark.parametrize("name", [API_TOKEN, "api" + KEY, PASSWORD])
@@ -742,8 +805,7 @@ def test_findings_across_many_leaves_are_capped() -> None:
 
 def test_payload_limit_reports_truncation_even_when_paths_deduplicate() -> None:
     fields = {
-        f"field_{index}": f"{API_TOKEN}: str = '{LONG_VALUE}'"
-        for index in range(MAX_FINDINGS + 1)
+        f"field_{index}": f"{API_TOKEN}: str = '{LONG_VALUE}'" for index in range(MAX_FINDINGS + 1)
     }
     fields["last"] = FAKE_TOKEN
     findings = scan_payload({"tool_name": "mcp", "tool_input": fields})
