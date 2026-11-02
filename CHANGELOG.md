@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## Unreleased
 
+## 0.1.1 (2026-11-02)
+
 ### Added
 
 - Package scaffold: `pyproject.toml` with the hatchling build backend and the `guardline` console script.
@@ -43,6 +45,7 @@ All notable changes to this project are documented in this file. The format foll
 
 - The optional dependencies are `test` (`pytest>=9.0.3`, `pytest-cov>=7`) and `lint` (`ruff`, `mypy`). Install both with `pip install -e '.[test,lint]'`.
 - Ruff checks the `S` and `RUF` rule sets as well.
+- `token-generic-assignment` no longer reports a copy key under `data-copy-key`, `titleKey` or `textKey` in the `pages` or `global` namespace, or a lowercase CSS variable under the bare name `token`. Other names, namespaces and password or secret assignments remain findings, and type annotations still do not prove a value is public.
 - The configuration reference says that dictionary keys of a tool input count toward the `max_text_chars` bound of the hook, as the security model already did.
 
 ### Fixed

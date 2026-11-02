@@ -45,7 +45,7 @@ The two pre-commit hooks pass `--mode block` themselves, and the last `--mode` o
 ```yaml
 repos:
   - repo: https://github.com/klappe-pm/guardline
-    rev: v0.1.0
+    rev: v0.1.1
     hooks:
       - id: guardline
         args: [--mode, report, --]

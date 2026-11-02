@@ -42,6 +42,19 @@ FILE_SKIPPED_RULE = "guardline-file-skipped"
 
 ATTRIBUTION_FAMILY = "attribution"
 
+# A word is all letters or all digits: a mixed word such as v4lue has a token trait.
+_REFERENCE_WORD = r"(?:[a-z]+|[0-9]+)(?:-(?:[a-z]+|[0-9]+))*"
+# Value shape alone cannot separate a copy key from a dotted passphrase, so a copy
+# reference also needs an exact attribute name and a known copy namespace.
+_COPY_REFERENCE = re.compile(
+    rf"""(key|Key)=(["'])(?:pages|global)(?:\.{_REFERENCE_WORD}){{1,8}}\2"""
+)
+_COPY_PROPERTY_REFERENCE = re.compile(
+    rf"""key(["'])[ \t]*:[ \t]*(["'])(?:pages|global)(?:\.{_REFERENCE_WORD}){{1,8}}\2"""
+)
+_CSS_VARIABLE_REFERENCE = re.compile(rf"""token["']?[ \t]*:[ \t]*(["'])--{_REFERENCE_WORD}\1""")
+_COPY_ATTRIBUTE_PREFIXES = {"data-copy-": "key", "title": "Key", "text": "Key"}
+
 _FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})[^\n]*")
 _FENCE_CLOSE = re.compile(r" {0,3}(`{3,}|~{3,})[ \t]*")
 
@@ -80,6 +93,27 @@ MAX_PAYLOAD_LEAVES = 2000
 MAX_PAYLOAD_KEYS = 2000
 """Most dictionary keys of a tool input that are judged."""
 _GIT_BINARY = "git-"
+
+
+def _is_public_reference(text: str, start: int, matched: str) -> bool:
+    """Whether a generic assignment names a public copy key or CSS variable."""
+    if _CSS_VARIABLE_REFERENCE.fullmatch(matched):
+        return start == 0 or not (text[start - 1].isalnum() or text[start - 1] in "_-")
+    copy_property = _COPY_PROPERTY_REFERENCE.fullmatch(matched)
+    if copy_property is not None:
+        name = copy_property.group(1) + "data-copy-"
+        boundary = start - len(name)
+        if boundary < 0 or not text.startswith(name, boundary):
+            return False
+        return boundary == 0 or text[boundary - 1].isspace() or text[boundary - 1] in "{,"
+    copy = _COPY_REFERENCE.fullmatch(matched)
+    if copy is None:
+        return False
+    for prefix, name in _COPY_ATTRIBUTE_PREFIXES.items():
+        boundary = start - len(prefix)
+        if copy.group(1) == name and boundary >= 0 and text.startswith(prefix, boundary):
+            return boundary == 0 or text[boundary - 1].isspace()
+    return False
 
 
 class _Lines:
@@ -268,6 +302,10 @@ class Scanner:
                         or not match.group(0).upper().startswith(("PASSWORD", "SECRET"))
                         or re.match(r"(?i)^secret[ \t]*:[ \t]*//", match.group(0))
                     )
+                ):
+                    continue
+                if rule.id == "token-generic-assignment" and _is_public_reference(
+                    text, match.start(), match.group(0)
                 ):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):

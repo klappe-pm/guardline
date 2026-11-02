@@ -9,7 +9,7 @@ Add this to `.pre-commit-config.yaml`. Pin `rev` to a release tag (or a full com
 ```yaml
 repos:
   - repo: https://github.com/klappe-pm/guardline
-    rev: v0.1.0
+    rev: v0.1.1
     hooks:
       - id: guardline
       - id: guardline-commit-msg
