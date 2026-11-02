@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ## Unreleased
 
+## 0.1.1 (2026-11-02)
+
 ### Added
 
 - Package scaffold: `pyproject.toml` with the hatchling build backend and the `guardline` console script.

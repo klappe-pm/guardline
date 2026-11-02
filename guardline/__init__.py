@@ -9,7 +9,7 @@ from guardline.errors import ConfigError, GuardlineError, RuleError
 from guardline.model import Finding, Rule
 from guardline.rules import builtin_rules, load_rule_file, verify_rule_examples
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "ConfigError",
