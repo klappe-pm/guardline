@@ -7,8 +7,8 @@ This page describes the data files that ship inside the package and how the code
 | file | family | rules |
 | --- | --- | --- |
 | `guardline/data/rules/attribution.toml` | attribution | 9 |
-| `guardline/data/rules/env-dump.toml` | env-dump | 14 |
-| `guardline/data/rules/token.toml` | token | 22 |
+| `guardline/data/rules/env-dump.toml` | env-dump | 15 |
+| `guardline/data/rules/token.toml` | token | 29 |
 
 The format is described in the [rule file format](rule-file-format.md).
 

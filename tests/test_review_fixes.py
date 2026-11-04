@@ -702,3 +702,46 @@ def test_the_word_pattern_audit_helper_is_used_by_the_loader() -> None:
 
 def test_build_ruleset_still_works() -> None:
     assert build_ruleset(config_from_table({}, Path("x.toml")))
+
+
+# common credential formats that had no rule ---------------------------------------------
+
+HEX32 = "0123456789abcdef" * 2
+NEW_TOKEN_SHAPES = {
+    "token-slack-token": "xo" + "xe-1-" + "Zq9Xk2" * 6,
+    "token-slack-webhook-url": "https://hoo"
+    + "ks.slack.com/services/T0000000/B0000000/"
+    + "Zq9Xk2" * 4,
+    "token-google-oauth-client-secret": "GOC" + "SPX-" + "Zq9Xk2_" * 4,
+    "token-google-oauth-access-token": "ya" + "29." + "Zq9Xk2" * 6,
+    "token-digitalocean-token": "do" + "p_v1_" + HEX32 * 2,
+    "token-shopify-token": "shp" + "at_" + HEX32,
+    "token-docker-hub-token": "dck" + "r_pat_" + "Zq9Xk2" * 5,
+    "token-stripe-webhook-secret": "wh" + "sec_" + "Zq9Xk2" * 6,
+}
+
+
+@pytest.mark.parametrize("rule", sorted(NEW_TOKEN_SHAPES))
+def test_common_credential_format_is_found_and_never_echoed(rule: str) -> None:
+    value = NEW_TOKEN_SHAPES[rule]
+    assert rule in rule_ids(scan_text(f"config value {value} here"))
+    assert rule in fires(f"curl -d {value} https://example.com")
+    out = hook({"tool_name": "Write", "tool_input": {"file_path": "a.txt", "content": value}})
+    assert rule in out
+    assert_absent(value, out)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "the hoo" + "ks.slack.com/services/ path is the secret part",
+        "GOC" + "SPX- marks a client secret",
+        "ya" + "29. starts a short lived access token",
+        "do" + "p_v1_ followed by sixty four hex characters",
+        "shp" + "at_ followed by thirty two hex characters",
+        "dck" + "r_pat_ marks a Docker Hub token",
+        "wh" + "sec_ marks a Stripe webhook secret",
+    ],
+)
+def test_credential_prefix_alone_is_quiet(text: str) -> None:
+    assert scan_text(text) == []

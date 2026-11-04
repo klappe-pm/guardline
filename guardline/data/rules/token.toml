@@ -45,7 +45,7 @@ example_clean = "the \u0067hp_ prefix marks a personal token"
 id = "token-slack-token"
 family = "token"
 description = "A Slack bot, app, user or refresh token."
-pattern = '(?<![A-Za-z0-9])xox[baprs]-[A-Za-z0-9-]{10,255}'
+pattern = '(?<![A-Za-z0-9])xox[abeprs]-[A-Za-z0-9-]{10,255}'
 example_fires = "\u0078oxb-123456789012-abcdefghijklmnop"
 example_clean = "the \u0078oxb- prefix marks a bot token"
 
@@ -136,6 +136,69 @@ ignore_case = false
 pattern = '(?<![A-Za-z0-9])SG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}'
 example_fires = "\u0053G.abcdefghijklmnopqrstuv.abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 example_clean = "the \u0053G. prefix marks a SendGrid key"
+
+[[rule]]
+id = "token-slack-webhook-url"
+family = "token"
+description = "A Slack incoming webhook URL, whose path is the credential."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9.-])hooks\.slack\.com/services/T[A-Z0-9]{6,12}/B[A-Z0-9]{6,12}/[A-Za-z0-9]{16,64}'
+example_fires = "url = https://\u0068ooks.slack.com/services/T00000000/B00000000/abcdefghijklmnopqrstuvwx"
+example_clean = "post to https://\u0068ooks.slack.com/services/ followed by the webhook path"
+
+[[rule]]
+id = "token-google-oauth-client-secret"
+family = "token"
+description = "A Google OAuth client secret."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])GOCSPX-[A-Za-z0-9_-]{28}'
+example_fires = "client \u0047OCSPX-abcdefghijklmnopqrstuvwxyz01"
+example_clean = "the \u0047OCSPX- prefix marks an OAuth client secret"
+
+[[rule]]
+id = "token-google-oauth-access-token"
+family = "token"
+description = "A Google OAuth access token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9_.-])ya29\.[A-Za-z0-9_-]{30,2048}'
+example_fires = "access \u0079a29.abcdefghijklmnopqrstuvwxyz0123456789"
+example_clean = "the \u0079a29. prefix marks a Google access token"
+
+[[rule]]
+id = "token-digitalocean-token"
+family = "token"
+description = "A DigitalOcean personal access, OAuth or refresh token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])do[opr]_v1_[a-f0-9]{64}'
+example_fires = "\u0064op_v1_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+example_clean = "the \u0064op_v1_ prefix marks a DigitalOcean token"
+
+[[rule]]
+id = "token-shopify-token"
+family = "token"
+description = "A Shopify access token or shared secret."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])shp(?:at|ca|pa|ss)_[a-fA-F0-9]{32}'
+example_fires = "\u0073hpat_0123456789abcdef0123456789abcdef"
+example_clean = "the \u0073hpat_ prefix marks a Shopify token"
+
+[[rule]]
+id = "token-docker-hub-token"
+family = "token"
+description = "A Docker Hub personal or organization access token."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])dckr_(?:pat|oat)_[A-Za-z0-9_-]{27,64}'
+example_fires = "\u0064ckr_pat_abcdefghijklmnopqrstuvwxyz0"
+example_clean = "the \u0064ckr_pat_ prefix marks a Docker Hub token"
+
+[[rule]]
+id = "token-stripe-webhook-secret"
+family = "token"
+description = "A Stripe webhook signing secret."
+ignore_case = false
+pattern = '(?<![A-Za-z0-9])whsec_[A-Za-z0-9+/=]{32,128}'
+example_fires = "\u0077hsec_abcdefghijklmnopqrstuvwxyz012345"
+example_clean = "the \u0077hsec_ prefix marks a webhook secret"
 
 [[rule]]
 id = "token-jwt"
