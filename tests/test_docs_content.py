@@ -44,6 +44,12 @@ def test_rule_counts_in_the_documents_match_the_rules() -> None:
         "9 attribution rules, 14 environment dump rules and 22 token-shaped value rules"
         in reference
     )
+    for family, count in per_family.items():
+        assert re.search(rf"^\| {re.escape(family)} \| {count} \|", readme, re.M), family
+    package_data = (ROOT / "docs/reference/package-data.md").read_text(encoding="utf-8")
+    for family, count in per_family.items():
+        row = rf"^\| `guardline/data/rules/{re.escape(family)}\.toml` \| {re.escape(family)} \| "
+        assert re.search(rf"{row}{count} \|", package_data, re.M), family
 
 
 AGENT_NAMES = (

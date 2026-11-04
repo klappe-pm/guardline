@@ -110,7 +110,7 @@ Every rule is an entry in a TOML rule file with an id, a family, a pattern and t
 | --- | --- | --- |
 | attribution | 9 | A co-author trailer, a generated with footer, a session link or a robot byline in authored text |
 | env-dump | 14 | Shell commands that print the environment, a process environment or a keychain secret |
-| token | 20 | Values shaped like API keys, tokens, private key blocks and other credentials |
+| token | 22 | Values shaped like API keys, tokens, private key blocks and other credentials |
 
 | Entry point | Where it runs | What it reads |
 | --- | --- | --- |
