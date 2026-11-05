@@ -1,6 +1,6 @@
 # Rules
 
-This page lists all 45 built-in rules, grouped by family: 9 attribution rules, 14 environment dump rules and 22 token-shaped value rules. Each row gives the rule id, which you use to disable it, the scope that says how it is applied, and what it catches. The authoritative definition of a rule is its entry in the rule files under `guardline/data/rules/`, and each entry carries the two examples that the tests run. Fields are explained in the [rule file format](rule-file-format.md).
+This page lists all 53 built-in rules, grouped by family: 9 attribution rules, 15 environment dump rules and 29 token-shaped value rules. Each row gives the rule id, which you use to disable it, the scope that says how it is applied, and what it catches. The authoritative definition of a rule is its entry in the rule files under `guardline/data/rules/`, and each entry carries the two examples that the tests run. Fields are explained in the [rule file format](rule-file-format.md).
 
 A finding carries the rule id and a position and never the matched text. All patterns are heuristics; the [security model](../explanation/security-model.md) lists what they miss.
 
@@ -26,7 +26,7 @@ The product link rule decides by host. A link to an issue, pull request, release
 
 ## Env-Dump
 
-Environment dump rules judge shell commands, one simple command at a time, after the splitter has looked through pipes, `&&`, `;`, newlines, subshells, `$(...)`, backticks, heredocs (a `<<` on a line that holds `((`, `${` or `$[` is a shift or a default and opens none; a line ending in `|` or `|&` hands its body to a shell named on the line after the body), here-strings and wrappers: `bash -c` and the other shells, `eval`, `env VAR=val cmd`, `env -S`, `sudo`, `doas`, `command`, `exec`, `nohup`, `time`, `nice`, `timeout`, `stdbuf`, `unbuffer`, `caffeinate`, `script`, `watch`, `xargs`, `find -exec`, `ssh host cmd`, `docker` and `podman` `exec` and `run`, `docker compose exec`, `kubectl exec --` and `op run --`.
+Environment dump rules judge shell commands, one simple command at a time, after the splitter has looked through pipes, `&&`, `;`, newlines, subshells, `$(...)`, backticks, heredocs (a `<<` on a line that holds `((`, `${` or `$[` is a shift or a default and opens none; a line ending in `|` or `|&` hands its body to a shell named on the line after the body), here-strings and wrappers: `bash -c` and the other shells, `eval`, `env VAR=val cmd`, `env -S`, `sudo`, `doas`, `command`, `exec`, `nohup`, `time`, `nice`, `timeout`, `stdbuf`, `unbuffer`, `caffeinate`, `script`, `watch`, `xargs`, `find -exec`, `ssh host cmd`, `docker` and `podman` `exec` and `run`, `docker compose exec`, `kubectl exec --`, `op run --`, `aws-vault exec --` and `chamber exec --`, the `run` subcommand of `doppler`, `infisical`, `dotenvx`, `uv`, `poetry` and `pipenv` (and `--command` for the first three), `runuser`, `pkexec`, `arch`, `nsenter`, `systemd-run`, `sandbox-exec`, `firejail` and the `coproc` keyword. A shell's `-c` is a flag, so options after it (`bash -c -- env`, `bash -eo pipefail -c env`) do not hide the command string.
 
 | rule id | scope | what it catches |
 | --- | --- | --- |
@@ -38,6 +38,7 @@ Environment dump rules judge shell commands, one simple command at a time, after
 | `env-dump-declare-no-name` | args | declare or typeset with only attribute flags lists variables. |
 | `env-dump-readonly-no-name` | args | readonly or local with no name lists variables. |
 | `env-dump-launchctl-print` | args | launchctl print, getenv, export, procinfo and dumpstate print launchd state and environment. |
+| `env-dump-systemctl-show-environment` | args | systemctl show-environment prints the environment of the systemd manager. |
 | `env-dump-ps-environment-flag` | args | ps with -E in an option cluster prints each process environment. |
 | `env-dump-ps-bsd-environment-word` | args | ps with a BSD style option word containing e (ps e, ps eww, ps aux e) prints each process environment. |
 | `env-dump-proc-environ` | word | A reference to /proc/PID/environ, as an argument or a redirect target. |
@@ -68,6 +69,13 @@ Token-shaped rules judge text, and also the whole text of a shell command, so a 
 | `token-huggingface-token` | text | A Hugging Face user access token. |
 | `token-slack-app-token` | text | A Slack app level token. |
 | `token-sendgrid-api-key` | text | A SendGrid API key. |
+| `token-slack-webhook-url` | text | A Slack incoming webhook URL, whose path is the credential. |
+| `token-google-oauth-client-secret` | text | A Google OAuth client secret. |
+| `token-google-oauth-access-token` | text | A Google OAuth access token. |
+| `token-digitalocean-token` | text | A DigitalOcean personal access, OAuth or refresh token. |
+| `token-shopify-token` | text | A Shopify access token or shared secret. |
+| `token-docker-hub-token` | text | A Docker Hub personal or organization access token. |
+| `token-stripe-webhook-secret` | text | A Stripe webhook signing secret. |
 | `token-jwt` | text | A JSON web token: three dot separated base64url segments, the first starting with eyJ. |
 | `token-bearer-token` | text | A Bearer credential of twenty or more token characters. |
 | `token-generic-assignment` | text | A key, token, secret or password name assigned a literal of sixteen or more token characters. |

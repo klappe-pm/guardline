@@ -368,3 +368,32 @@ def test_the_command_line_reads_only_a_bounded_amount_of_standard_input(
     assert main(["hook", "--no-config"]) == 0
     assert requested == [limit + 1]
     assert "longer than" in reason_of(HookResult(0, capsys.readouterr().out))
+
+
+@pytest.mark.parametrize("body", ["[]", '"printenv"', "null", "42", '[{"tool_name": "Bash"}]'])
+def test_a_payload_that_is_not_an_object_fails_closed(body: str) -> None:
+    result = run_hook(body, Scanner())
+    assert "not a JSON object" in reason_of(result)
+    assert "blocked rather than passed unchecked" in result.stdout
+    reported = run_hook(body, Scanner(), mode="report")
+    assert (reported.exit_code, reported.stdout) == (0, "")
+    assert "not a JSON object" in reported.stderr
+
+
+@pytest.mark.parametrize(
+    "tool_input", [None, "printenv", 7, True], ids=["missing", "string", "number", "bool"]
+)
+def test_a_tool_call_without_a_tool_input_mapping_fails_closed(tool_input: object) -> None:
+    call: dict[str, object] = {"hook_event_name": "PreToolUse", "tool_name": "Bash"}
+    if tool_input is not None:
+        call["tool_input"] = tool_input
+    result = run_hook(json.dumps(call), Scanner())
+    assert "no tool_input mapping" in reason_of(result)
+    assert_absent("printenv", result.stdout, result.stderr)
+    exit_coded = run_hook(json.dumps(call), Scanner(), deny_with="exit-code")
+    assert exit_coded.exit_code == 2
+
+
+def test_an_object_that_names_no_tool_still_has_nothing_to_judge() -> None:
+    body = json.dumps({"hook_event_name": "Notification", "message": "done"})
+    assert run_hook(body, Scanner()) == HookResult(0)

@@ -35,7 +35,11 @@ def run_commands(block: str) -> list[str]:
 def test_only_the_release_workflow_exists() -> None:
     try:
         out = subprocess.run(
-            ["git", "ls-files", ".github/workflows"], cwd=ROOT, capture_output=True, text=True, check=True
+            ["git", "ls-files", ".github/workflows"],  # noqa: S607 (git on PATH, fixed arguments, no shell)
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout
         workflows = sorted(line.rsplit("/", 1)[-1] for line in out.splitlines() if line)
     except (OSError, subprocess.CalledProcessError):

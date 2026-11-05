@@ -591,28 +591,38 @@ def _after_double_dash(args: list[str]) -> list[str] | None:
 
 
 def _shell_script(args: list[str]) -> tuple[str, str | None]:
-    """For a shell's arguments return ("c", text), ("stdin", None) or ("file", None)."""
+    """For a shell's arguments return ("c", text), ("stdin", None) or ("file", None).
+
+    As in bash and POSIX sh, ``-c`` is a flag: options may follow it (``-c -e``,
+    ``-c -o pipefail``, ``-c --``), and the command string is the first operand.
+    """
     i = 0
     reads_stdin_flag = False
+    command_flag = False
     while i < len(args):
         arg = args[i]
         if arg == "--":
+            if command_flag:
+                return ("c", args[i + 1] if i + 1 < len(args) else "")
             return ("file", None) if i + 1 < len(args) and not reads_stdin_flag else ("stdin", None)
         if arg in _SHELL_VALUE_OPTIONS:
             i += 2
             continue
         if arg[:1] in ("-", "+") and len(arg) > 1 and not arg.startswith("--"):
             if "c" in arg[1:]:
-                return ("c", args[i + 1] if i + 1 < len(args) else "")
-            if "s" in arg[1:]:
+                command_flag = True
+            elif "s" in arg[1:]:
                 reads_stdin_flag = True
-            i += 1
+            # A cluster that ends in o or O takes the next word as its value (-eo pipefail).
+            i += 2 if len(arg) > 2 and arg[-1] in "oO" else 1
             continue
         if arg.startswith("--"):
             i += 1
             continue
+        if command_flag:
+            return ("c", arg)
         return ("stdin", None) if reads_stdin_flag else ("file", None)
-    return ("stdin", None)
+    return ("c", "") if command_flag else ("stdin", None)
 
 
 def _strip_leading(argv: list[str]) -> list[str]:
@@ -624,6 +634,9 @@ def _strip_leading(argv: list[str]) -> list[str]:
             i += 1
         elif word == "function" and "{" in argv[i:]:
             i = argv.index("{", i) + 1
+        elif word == "coproc":
+            # coproc runs a command; a NAME is allowed only before a compound command.
+            i += 2 if i + 2 < len(argv) and argv[i + 2] == "{" else 1
         else:
             break
     return argv[i:]
@@ -714,7 +727,39 @@ _WRAPPERS: dict[str, _Wrap] = {
     "timeout": _w("-s -k --signal --kill-after", operands=1),
     "gtimeout": _w("-s -k --signal --kill-after", operands=1),
     "xargs": _w(_XARGS),
+    "runuser": _w(
+        "-g -G -s -u -w --group --supp-group --shell --user --whitelist-environment",
+        command="-c --command",
+    ),
+    "pkexec": _w("--user"),
+    "arch": _w("-arch -d -e"),
+    "nsenter": _w("-t --target -S --setuid -G --setgid"),
+    "systemd-run": _w(
+        "-p --property -u --unit --description --slice -E --setenv --uid --gid -M --machine "
+        "--working-directory -H --host --nice --service-type --on-active --on-calendar"
+    ),
+    "sandbox-exec": _w("-f -p -n -D"),
+    "firejail": _w(),
 }
+
+_DASH_RUNNERS = frozenset(
+    {"op", "kubectl", "aws-vault", "chamber", "doppler", "infisical", "dotenvx"}
+)
+"""Programs that run the command after their ``--``, such as a secret injector."""
+
+_UV_RUN_VALUES = (
+    "--with --with-editable --with-requirements --python -p --env-file --directory "
+    "--project --package --extra --group --index --script"
+)
+_RUN_SUBCOMMANDS: dict[str, tuple[str, frozenset[str]]] = {
+    "doppler": ("run", frozenset()),
+    "infisical": ("run", frozenset()),
+    "dotenvx": ("run", frozenset()),
+    "uv": ("run", frozenset(_UV_RUN_VALUES.split())),
+    "poetry": ("run", frozenset({"-C", "--directory", "-P", "--project"})),
+    "pipenv": ("run", frozenset()),
+}
+"""Programs whose ``run`` subcommand runs a command, with the options that take a value."""
 
 
 class _Walker:
@@ -862,14 +907,32 @@ class _Walker:
             self.command(" ".join(rest), nxt, offset, False)
         elif program in _DOCKER_PROGRAMS:
             self._docker(program, args, nxt, offset)
-        elif program in ("op", "kubectl"):
-            tail = _after_double_dash(args)
-            if tail:
-                self.argv(tail, nxt, offset)
+        elif program in _DASH_RUNNERS or program in _RUN_SUBCOMMANDS:
+            self._runner(program, args, nxt, offset)
         elif program in _WRAPPERS:
             self._table(_WRAPPERS[program], args, nxt, offset)
         elif program in ("function",):
             return
+
+    def _runner(self, program: str, args: list[str], depth: int, offset: int) -> None:
+        """Follow ``op run --``, ``doppler run --command``, ``uv run`` and the like."""
+        spec = _RUN_SUBCOMMANDS.get(program)
+        if spec is None or args[:1] != [spec[0]]:
+            tail = _after_double_dash(args)
+            if tail:
+                self.argv(tail, depth, offset)
+            return
+        options = args[1:]
+        start = _skip_options(options, spec[1] | {"--command"})
+        for i, arg in enumerate(options[:start]):
+            if arg.startswith("--command="):
+                self.command(arg.split("=", 1)[1], depth, offset, False)
+                return
+            if arg == "--command" and i + 1 < len(options):
+                self.command(options[i + 1], depth, offset, False)
+                return
+        tail = _after_double_dash(options) if program in _DASH_RUNNERS else None
+        self.argv(tail if tail is not None else options[start:], depth, offset)
 
     def _table(self, spec: _Wrap, args: list[str], depth: int, offset: int) -> None:
         for i, arg in enumerate(args):
