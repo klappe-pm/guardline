@@ -4,13 +4,13 @@ This page describes what `guardline hook` reads, which parts of a tool call it j
 
 ## Input
 
-One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. Invalid UTF-8 bytes are replaced and the payload is still judged. The command reads at most four times `max_text_chars` bytes plus one from standard input (4 MiB by default), and a payload longer than that is a deny before it is parsed, saying it is longer than the limit. Inside a payload, every dictionary key is judged for tokens as text, and all string values and keys of `tool_input` together may hold `max_text_chars` characters, and all command values together `max_command_chars`; over either, the whole tool input is refused with a `guardline-input-too-large` finding instead of being scanned value by value.
+One JSON object on standard input. Empty input is not allowed: in block mode it is a deny, because a hook that is handed nothing has not judged anything. A payload that is valid JSON but not an object (an array, a string, a number or `null`) is a deny for the same reason. Invalid UTF-8 bytes are replaced and the payload is still judged. The command reads at most four times `max_text_chars` bytes plus one from standard input (4 MiB by default), and a payload longer than that is a deny before it is parsed, saying it is longer than the limit. Inside a payload, every dictionary key is judged for tokens as text, and all string values and keys of `tool_input` together may hold `max_text_chars` characters, and all command values together `max_command_chars`; over either, the whole tool input is refused with a `guardline-input-too-large` finding instead of being scanned value by value.
 
 | field | meaning |
 | --- | --- |
 | `hook_event_name` | copied into the decision as `hookEventName`; default `PreToolUse` |
 | `tool_name` | only `TodoWrite` is special: it is local bookkeeping and is never judged |
-| `tool_input` | a mapping; everything judged comes from here. Anything else, or no mapping, has nothing to judge |
+| `tool_input` | a mapping (or a list); everything judged comes from here. When the payload names a `tool_name`, a missing `tool_input` or one that is a bare string, number or boolean is a deny in block mode, because the call would otherwise pass unjudged. A payload that names no tool has nothing to judge |
 
 ## What Is Judged
 

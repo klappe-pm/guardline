@@ -91,6 +91,17 @@ example_fires = "launchctl print system"
 example_clean = "launchctl list"
 
 [[rule]]
+id = "env-dump-systemctl-show-environment"
+family = "env-dump"
+description = "systemctl show-environment prints the environment of the systemd manager."
+scope = "args"
+programs = ["systemctl"]
+value_options = ["-H", "--host", "-M", "--machine"]
+pattern = '(?:^| )show-environment(?: |$)'
+example_fires = "systemctl --user show-environment"
+example_clean = "systemctl --user status show-environment.service"
+
+[[rule]]
 id = "env-dump-ps-environment-flag"
 family = "env-dump"
 description = "ps with -E in an option cluster prints each process environment."

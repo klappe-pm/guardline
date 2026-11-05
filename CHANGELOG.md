@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. The format foll
 
 ## Unreleased
 
+### Added
+
+- Token rules for Slack incoming webhook URLs, Google OAuth client secrets and access tokens, DigitalOcean tokens, Shopify tokens, Docker Hub access tokens and Stripe webhook signing secrets; the Slack token rule also matches the `xoxe-` refresh prefix.
+- `env-dump-systemctl-show-environment`, the Linux counterpart of the launchctl rule.
+- The shell splitter follows `runuser`, `pkexec`, `arch`, `nsenter`, `systemd-run`, `sandbox-exec`, `firejail`, the `coproc` keyword, `aws-vault exec --`, `chamber exec --`, and the `run` subcommand of `doppler`, `infisical`, `dotenvx`, `uv`, `poetry` and `pipenv`, including `--command`.
+
+### Fixed
+
+- `guardline hook` fails closed on a payload that is valid JSON but not an object, and on a tool call whose `tool_input` is missing or a bare value. Both used to pass with nothing judged.
+- A shell's `-c` is read as a flag, as bash and POSIX sh read it, so options after it no longer hide the command string: `bash -c -- env`, `bash -c -e printenv` and `sh -c -o errexit 'export -p'` are findings. A cluster that ends in `o`, as in `bash -eo pipefail -c env`, takes its value word.
+- The README family table and the package data reference gave the token family 20 rules instead of the 22 that shipped.
+
 ## 0.1.1 (2026-11-02)
 
 ### Added

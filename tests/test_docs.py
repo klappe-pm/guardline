@@ -183,7 +183,11 @@ def tracked_github_files() -> set[str]:
     """
     try:
         out = subprocess.run(
-            ["git", "ls-files", ".github"], cwd=ROOT, capture_output=True, text=True, check=True
+            ["git", "ls-files", ".github"],  # noqa: S607 (git on PATH, fixed arguments, no shell)
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout
         files = {line for line in out.splitlines() if line}
         if files:

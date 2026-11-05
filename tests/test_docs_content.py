@@ -33,17 +33,23 @@ def test_rule_counts_in_the_documents_match_the_rules() -> None:
     per_family = {
         f: sum(1 for r in rules if r.family == f) for f in ("attribution", "env-dump", "token")
     }
-    assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 14, 22)
+    assert (per_family["attribution"], per_family["env-dump"], per_family["token"]) == (9, 15, 29)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert f"img.shields.io/badge/rules-{len(rules)}-" in readme
     assert f"**{len(rules)} built-in rules in three families.**" in readme
-    assert "Agent attribution (9), environment dumps (14) and token-shaped values (22)" in readme
+    assert "Agent attribution (9), environment dumps (15) and token-shaped values (29)" in readme
     reference = (ROOT / "docs/reference/rules.md").read_text(encoding="utf-8")
     assert f"all {len(rules)} built-in rules" in reference
     assert (
-        "9 attribution rules, 14 environment dump rules and 22 token-shaped value rules"
+        "9 attribution rules, 15 environment dump rules and 29 token-shaped value rules"
         in reference
     )
+    for family, count in per_family.items():
+        assert re.search(rf"^\| {re.escape(family)} \| {count} \|", readme, re.M), family
+    package_data = (ROOT / "docs/reference/package-data.md").read_text(encoding="utf-8")
+    for family, count in per_family.items():
+        row = rf"^\| `guardline/data/rules/{re.escape(family)}\.toml` \| {re.escape(family)} \| "
+        assert re.search(rf"{row}{count} \|", package_data, re.M), family
 
 
 AGENT_NAMES = (

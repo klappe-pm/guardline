@@ -121,9 +121,16 @@ def run_hook(
     except Exception as error:
         name = error.__class__.__name__
         return _failure(f"the hook payload could not be read ({name})", mode, event, deny_with)
+    if not isinstance(payload, dict):
+        return _failure("the hook payload is not a JSON object", mode, event, deny_with)
+    if isinstance(payload.get("hook_event_name"), str):
+        event = payload["hook_event_name"]
+    if "tool_name" in payload and not isinstance(payload.get("tool_input"), dict | list):
+        # A tool call whose input is missing or a bare value was not sent in the shape
+        # this hook judges, so passing it would let the call through unjudged.
+        message = "the hook payload names a tool but has no tool_input mapping"
+        return _failure(message, mode, event, deny_with)
     try:
-        if isinstance(payload, dict) and isinstance(payload.get("hook_event_name"), str):
-            event = payload["hook_event_name"]
         findings = scanner.scan_payload(payload)
     except Exception as error:
         return _failure(f"the scanner failed ({error.__class__.__name__})", mode, event, deny_with)
