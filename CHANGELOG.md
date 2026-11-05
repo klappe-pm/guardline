@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- `guardline hook` fails closed on a payload that is valid JSON but not an object, and on a tool call whose `tool_input` is missing or a bare value. Both used to pass with nothing judged.
 - A shell's `-c` is read as a flag, as bash and POSIX sh read it, so options after it no longer hide the command string: `bash -c -- env`, `bash -c -e printenv` and `sh -c -o errexit 'export -p'` are findings. A cluster that ends in `o`, as in `bash -eo pipefail -c env`, takes its value word.
 - The README family table and the package data reference gave the token family 20 rules instead of the 22 that shipped.
 
