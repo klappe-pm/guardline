@@ -745,3 +745,9 @@ def test_common_credential_format_is_found_and_never_echoed(rule: str) -> None:
 )
 def test_credential_prefix_alone_is_quiet(text: str) -> None:
     assert scan_text(text) == []
+
+
+@pytest.mark.parametrize("rule", sorted(NEW_TOKEN_SHAPES))
+def test_common_credential_format_needs_a_token_boundary(rule: str) -> None:
+    value = NEW_TOKEN_SHAPES[rule].removeprefix("https://")
+    assert rule not in rule_ids(scan_text("x9" + value))
