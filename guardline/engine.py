@@ -240,6 +240,34 @@ def _word_candidates(word: str) -> Iterable[str]:
         yield normalise_path(value)
 
 
+SESSION_LINK_RULE = "attribution-session-permalink"
+_SESSION_LINK_LINE = re.compile(r'session-link:[ \t]*(["\']?)https://[^\s"\']+\1[ \t]*\r?')
+_SESSION_LINK_FOLDERS = frozenset({"docs", "local"})
+
+
+def _session_link_field(text: str, start: int, source: str) -> bool:
+    """Return True when a match at ``start`` is the whole value of a ``session-link:`` key.
+
+    The key must begin its line, the value must be one quoted or bare https link, and
+    nothing else may share the line. When ``source`` names a file (it contains a path
+    separator or ends in a Markdown suffix), the file must be Markdown inside a ``docs``
+    or ``local`` folder; a payload key such as ``tool_input.content`` names no file.
+    """
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", start)
+    line = text[line_start : line_end if line_end != -1 else len(text)]
+    if not _SESSION_LINK_LINE.fullmatch(line):
+        return False
+    normalized = source.replace("\\", "/")
+    names_file = "/" in normalized or normalized.lower().endswith((".md", ".mdx"))
+    if not names_file:
+        return True
+    parts = [part for part in normalized.split("/") if part]
+    return bool(parts) and parts[-1].lower().endswith((".md", ".mdx")) and any(
+        part in _SESSION_LINK_FOLDERS for part in parts[:-1]
+    )
+
+
 class Scanner:
     """Apply a set of rules to text, shell commands and tool payloads.
 
@@ -248,6 +276,11 @@ class Scanner:
         allow_fenced_attribution: when True, attribution findings inside a closed
             fenced code block are dropped. This is an explicit switch for quoting a
             third party's text. It is off by default and has no configuration key.
+        allow_session_link_field: when True, a session link is allowed as the whole
+            value of a ``session-link:`` key line in authored text, for projects whose
+            documents record the session that produced them. When the text comes from
+            a known file, the file must be Markdown inside a ``docs`` or ``local``
+            folder. Shell commands and commit messages never qualify. Off by default.
         max_text_chars: longest text accepted. Longer text yields a single
             ``guardline-input-too-large`` finding instead of being scanned.
         max_command_chars: longest shell command accepted, with the same result.
@@ -263,6 +296,7 @@ class Scanner:
         rules: Sequence[Rule] | None = None,
         *,
         allow_fenced_attribution: bool = False,
+        allow_session_link_field: bool = False,
         max_text_chars: int = DEFAULT_MAX_TEXT_CHARS,
         max_command_chars: int = DEFAULT_MAX_COMMAND_CHARS,
         families: Iterable[str] | None = None,
@@ -273,6 +307,7 @@ class Scanner:
         wanted = frozenset(families) if families is not None else None
         self.rules = tuple(rule for rule in chosen if wanted is None or rule.family in wanted)
         self.allow_fenced_attribution = allow_fenced_attribution
+        self.allow_session_link_field = allow_session_link_field
         self.max_text_chars = max_text_chars
         self.max_command_chars = max_command_chars
         self.allow_config_edit = allow_config_edit
@@ -282,7 +317,9 @@ class Scanner:
 
     # text -------------------------------------------------------------
 
-    def _text_matches(self, text: str, include: Callable[[Rule], bool]) -> list[tuple[Rule, int]]:
+    def _text_matches(
+        self, text: str, include: Callable[[Rule], bool], field_source: str | None = None
+    ) -> list[tuple[Rule, int]]:
         fenced = (
             fenced_ranges(text)
             if self.allow_fenced_attribution
@@ -309,6 +346,13 @@ class Scanner:
                 ):
                     continue
                 if rule.family == ATTRIBUTION_FAMILY and _in_ranges(match.start(), fenced):
+                    continue
+                if (
+                    field_source is not None
+                    and self.allow_session_link_field
+                    and rule.id == SESSION_LINK_RULE
+                    and _session_link_field(text, match.start(), field_source)
+                ):
                     continue
                 found.append((rule, match.start()))
                 if len(found) > MAX_FINDINGS:
@@ -380,7 +424,7 @@ class Scanner:
         return self._finish(
             [
                 self._finding(rule, source, lines, at)
-                for rule, at in self._text_matches(text, include)
+                for rule, at in self._text_matches(text, include, field_source=source)
             ],
             source,
         )
