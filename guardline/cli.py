@@ -54,6 +54,12 @@ def _common_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not report attribution inside a closed fenced code block",
     )
+    parent.add_argument(
+        "--allow-session-link-field",
+        action="store_true",
+        help="allow a session link as the whole value of a session-link: key line "
+        "(in a Markdown file under docs/ or local/ when the file is known)",
+    )
     return parent
 
 
@@ -161,6 +167,7 @@ def _setup(
         extra_disable=args.disable,
         families=args.family,
         allow_fenced_attribution=args.allow_fenced_attribution,
+        allow_session_link_field=args.allow_session_link_field,
         allow_config_edit=hook and args.allow_config_edit,
         protected_paths=(
             [str(path) for path in (args.config, *args.rules, *config.rule_files) if path]

@@ -197,6 +197,7 @@ def build_scanner(
     extra_disable: Sequence[str] = (),
     families: Sequence[str] | None = None,
     allow_fenced_attribution: bool = False,
+    allow_session_link_field: bool = False,
     allow_config_edit: bool = False,
     protected_paths: Sequence[str] = (),
 ) -> Scanner:
@@ -224,6 +225,7 @@ def build_scanner(
     return Scanner(
         rules,
         allow_fenced_attribution=allow_fenced_attribution,
+        allow_session_link_field=allow_session_link_field,
         allow_config_edit=allow_config_edit,
         protected_paths=protected_paths,
         max_text_chars=config.max_text_chars or DEFAULT_MAX_TEXT_CHARS,

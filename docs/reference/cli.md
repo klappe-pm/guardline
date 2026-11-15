@@ -33,6 +33,7 @@ These options are accepted by `hook`, `scan`, `diff`, `rules` and `config`. They
 | `--rules FILE` | load an extra rule file; repeatable |
 | `--family NAME` | run only rules of this family; repeatable; overrides the configured `families` |
 | `--allow-fenced-attribution` | do not report attribution inside a closed fenced code block |
+| `--allow-session-link-field` | allow a session link as the whole value of a `session-link:` key line; when the file is known it must be Markdown inside a `docs` or `local` folder |
 
 Option names must be written in full: every parser is created with abbreviations off, so `--mod` is a usage error rather than `--mode`. A file name that looks like an option cannot change a scan when it follows `--`, which the pre-commit hooks pass.
 

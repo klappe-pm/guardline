@@ -28,7 +28,7 @@ Input over a limit is not scanned. It yields one `guardline-input-too-large` fin
 
 ## Not a Key
 
-There is no key for `--allow-fenced-attribution`. The exception for quoting attribution inside a fenced code block is a per run switch on purpose. See [quote third party attribution](../how-to-guides/quote-third-party-attribution.md).
+There is no key for `--allow-fenced-attribution` or `--allow-session-link-field`. Both exceptions to the attribution rules, quoting inside a fenced code block and a `session-link:` provenance field, are per run switches on purpose. See [quote third party attribution](../how-to-guides/quote-third-party-attribution.md).
 
 ## Example `guardline.toml`
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- `--allow-session-link-field` on `scan`, `diff` and `hook`: a session link may be the whole value of a `session-link:` key line, for projects whose documents record the session that produced them as provenance. When the file is known it must be Markdown inside a `docs` or `local` folder; the key must start its line with nothing after the link; shell commands and commit messages never qualify. Off by default.
 - Token rules for Slack incoming webhook URLs, Google OAuth client secrets and access tokens, DigitalOcean tokens, Shopify tokens, Docker Hub access tokens and Stripe webhook signing secrets; the Slack token rule also matches the `xoxe-` refresh prefix.
 - `env-dump-systemctl-show-environment`, the Linux counterpart of the launchctl rule.
 - The shell splitter follows `runuser`, `pkexec`, `arch`, `nsenter`, `systemd-run`, `sandbox-exec`, `firejail`, the `coproc` keyword, `aws-vault exec --`, `chamber exec --`, and the `run` subcommand of `doppler`, `infisical`, `dotenvx`, `uv`, `poetry` and `pipenv`, including `--command`.
