@@ -1,6 +1,6 @@
 # Cut a Release
 
-This guide is for a maintainer releasing a new version of Guardline: bumping the version, settling the changelog, tagging, and publishing the package to PyPI and as a GitHub release. It assumes a clean checkout of `main` with the test suite green. It differs from the Stratarc release guide in one way, on purpose: Stratarc uploads by hand with `twine`, while Guardline publishes through PyPI trusted publishing from a pinned, approval gated workflow, so no upload token exists to leak and a required approval stands between a pushed tag and PyPI. The commands use `/path/to/guardline` for your clone.
+This guide is for a maintainer releasing a new version of Guardline: bumping the version, settling the changelog, tagging, and publishing the package to PyPI and as a GitHub release. It assumes a clean checkout of `main` with the test suite green. Guardline publishes through PyPI trusted publishing from a pinned, approval gated workflow, so no upload token exists to leak and a required approval stands between a pushed tag and PyPI. The commands use `/path/to/guardline` for your clone.
 
 ## Where the Version Lives
 
